@@ -1,18 +1,18 @@
-function run() {
-  var s = Sonic;
+var s = Sonic;
 
-  Scene(
+function entry(game, sprite_stack, context) {
+  NewScene(
     setBackground("school"),
     sprite_stack.push(
       Draw.animate_from_left(Image.silhouette(Sonic.left), Left)),
-    S("What's up?"),
+    s("What's up?"),
     "Who is that?",
     sprite_stack.pop().fade_away_quick(),
     sprite_stack.push(
       Draw.draw(Sonic.left, Left)),
     "Oh. It's sonic.",
     Me("Hi Sonic."),
-    S("Want to play super smash bros?"),
+    s("Want to play super smash bros?"),
     "I want to leave. But I don't want to hurt Sonic's feelings...",
     Choice(
       ["Sorry, I've got things to do!", Scenes.happy_ending],
