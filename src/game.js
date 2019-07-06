@@ -1,18 +1,11 @@
 import * as items from './items.js';
+import * as characters from './Characters.js';
 
 export class Game {
-  constructor() {
-    this.player = new Player();
-  }
-}
+  constructor(player) {
+    if (!(player instanceof characters.Player))
+      throw new Error("player is not an instance of Player()");
 
-class Player {
-  constructor() {
-    this.inventory = [true];
-  }
-
-  save(key) {
-    // generate save state and write to localstorage under key
-    return "";
+    this.player = player;
   }
 }

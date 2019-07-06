@@ -5,15 +5,17 @@ export class ItemDescriptor {
   }
 }
 
-export class WeaponDescriptor extends ItemDescriptor {
-  constructor() { super(); }
-}
+export class WeaponDescriptor extends ItemDescriptor { }
 export class PotionDescriptor extends ItemDescriptor { }
 
-export class Sword extends WeaponDescriptor {
-  constructor() { super(); }
+// Example of how a WeaponDescriptor might look:
+// export class Sword extends WeaponDescriptor {
+//   get attack() {
+//     return 42;
+//   }
+// }
 
-  get attack() {
-    return 42;
-  }
-}
+export class Inventory extends Array {}
+
+// A collection of named inventories
+export class Backpack {}

@@ -33,6 +33,8 @@ function ssb_tutorial(game, sprite_stack, context) {
       game.player.party.choose_main();
     }),
   );
+
+  return Jump(ssb_tutorial_fight);
 }
 
 function ssb_tutorial_fight(game, sprite_stack, context) {
@@ -134,7 +136,7 @@ function ssb_win() {
   Scene(Me("HAHA you suck!"));
   if(game.player.get_flag('sonic_suspicious')) {
     Scene(
-      sprite_stack.get().crazy_shake, // somehow get the sonic sprite
+      sprite_stack.get((Sonic.left, Left)).crazy_shake(),
       s("I'm going to kill you!!!"),
       sprite_stack.push(
         Draw.animate_zoom_in(Images.knife, Center)),
