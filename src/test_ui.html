@@ -1,10 +1,20 @@
 <link rel="stylesheet" type="text/css" href="/animate.css"></link>
 <script type="module">
 import * as ui from './ui.js';
-console.log(ui);
-ui.initialize(document.body);
-ui.setBackground('pic.png');
+import Typed from './typed/typed.js';
+import {Left} from './positions.js'
+(async function() {
+  ui.initialize(document.body);
+  await ui.NewScene(
+    ui.setBackground('pic.png'),
+    ui.spriteStack.push(
+      await ui.Draw.draw('sonic.png', Left, {"height": "100%"}, 'lightSpeedIn', {'duration': '1000ms'})),
+    "Hi! I'm Sonic!",
+    "How are you?"
+  );
+})();
 window.ui = ui;
+window.Typed = Typed;
 </script>
 <body>
 </body>
