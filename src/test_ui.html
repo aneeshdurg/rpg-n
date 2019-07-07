@@ -1,18 +1,27 @@
 <link rel="stylesheet" type="text/css" href="/animate.css"></link>
 <script type="module">
-import * as ui from './ui.js';
-import Typed from './typed/typed.js';
+import {Character} from './characters.js';
 import {Left} from './positions.js'
+import * as ui from './ui.js';
+
+import Typed from './typed/typed.js';
+var Sonic = new Character('Sonic', 'blue');
+Sonic.set_asset('default', 'sonic.png');
+var s = Sonic.renderer;
+
 (async function() {
   ui.initialize(document.body);
   await ui.NewScene(
     ui.setBackground('pic.png'),
     ui.spriteStack.push(
-      await ui.Draw.draw('sonic.png', Left, {"height": "100%"}, 'lightSpeedIn', {'duration': '1000ms'})),
-    "Hi! I'm Sonic!",
-    "How are you?"
+      await ui.Draw.draw(Sonic.assets.default, Left, {"height": "100%"}, 'lightSpeedIn', {'duration': '10000ms'})),
+    s("Hi! I'm Sonic!"),
+    s("How are you?"),
   );
 })();
+
+window.Sonic = Sonic;
+window.s = s;
 window.ui = ui;
 window.Typed = Typed;
 </script>

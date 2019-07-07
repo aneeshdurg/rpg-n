@@ -269,15 +269,6 @@ export class Draw {
   }
 }
 
-// This class contains methods to help a scene format text
-export class Text {}
-
-export class Dialogue {
-  render(text) {
-    // returns an HTML string describing how the text should be formatted
-  }
-}
-
 function _register_click_event(e) {
   if (_state.hijacker) {
     _state.hijacker(e);
