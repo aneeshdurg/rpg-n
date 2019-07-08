@@ -1,4 +1,5 @@
 import Typed from './typed/typed.js';
+import {History, HistoryItem} from './game.js';
 
 // Module UI
 export const NO_ACTION = Symbol('NO_ACTION');
@@ -14,7 +15,9 @@ var _state = {
   waiting_for_clicks: null,
 };
 
-export function initialize(parent) {
+var _scene_map = new Map();
+
+export function initialize(parent, scene_list) {
   document.body.style.MozUserSelect="none";
   document.body.style.userSelect="none"
 
@@ -58,6 +61,13 @@ export function initialize(parent) {
 
   _parent.appendChild(_main_display);
   _parent.appendChild(_textbox);
+
+  for (var scene of scene_list) {
+    if (_scene_map.get(scene.name)) {
+      throw new Error("Scene name '" + scene.name + "' is already taken! Please use unique names!");
+    }
+    _scene_map.set(scene.name, scene);
+  }
 }
 
 export function clearScene(duration) {
@@ -107,21 +117,34 @@ export class Scene {
     this.contents = params.contents;
   }
 
-  async _scene(actions) {
-    for (var action of actions) {
+  async _scene(game, actions) {
+    for (var idx in actions) {
+      var action = actions[idx];
+      game.player.history.push(HistoryItem.scene_progress(this.name, idx));
+
       if (action instanceof Action) {
-        var res = await action.run();
+        var res = null;
+        if (action instanceof AsynchronousAction)
+          res = action.run();
+        else
+          res = await action.run();
+
         if (action instanceof Choice) {
+          game.player.history.push(HistoryItem.choice(this.name, idx, ));
           if (res == null) {
             continue;
-          } else if (res instanceof Scene) {
+          } else if (res instanceof ChoiceResult) {
             // TODO consider refactoring this to append res to an array so that we
-            // avoid adding another function to the call stack.
-            // TODO refactor this to get a key into a "Scene Table" instead of a
             // function.
-            return res.run();
+            var next_scene = _scene_map.get(res.scene_name);
+            if (!next_scene) {
+              throw new Error("Could not find scene '" + res.scene_name + "'");
+            }
+
+            game.player.history.push(HistoryItem.choice(this.name, idx, res.id));
+            return next_scene.run(game);
           } else {
-            throw new Error("Expected an instance of ui.Scene");
+            throw new Error("Expected an instance of ui.ChoiceResult");
           }
         }
       } else if (typeof(action) == 'string') {
@@ -134,13 +157,15 @@ export class Scene {
     }
   }
 
-  async run() {
+  async run(game) {
+    game.save();
+
     if (this.cleanup) {
       await clearScene().run();
     }
     var contents = await this.contents();
     // TODO validate that contents is array of Actions or strings
-    return this._scene(contents);
+    return this._scene(game, contents);
   }
 };
 
@@ -173,7 +198,7 @@ function runGameUntil() {};
 export function jump(next) {
   // A "Choice" with no branches
   return new Choice(function() {
-    return next;
+    return new ChoiceResult(next, -1);
   });
 };
 
@@ -183,20 +208,23 @@ export function choice() {
     var resolver = null;
     var choice_chosen = new Promise((r) => { resolver = r; });
     var chosen_action = null;
-    for (var c of choices) {
-      // c[0] == choice text
-      // c[1] == choice action or NO_ACTION
+    var chosen_idx = -1;
+    for (var idx in choices) {
+      var choice = choices[idx]
+      // choice[0] == choice text
+      // choice[1] == choice action or NO_ACTION
       // TODO use mousetrap for keyboard support
       var b = document.createElement('button');
       b.className = "choiceButton";
-      b.innerHTML = c[0];
-      function _gen_callback(callback) {
+      b.innerHTML = choice[0];
+      function _gen_callback(callback, idx) {
         return function () {
           resolver();
           chosen_action = callback;
+          chosen_idx = idx;
         };
       }
-      b.onclick = _gen_callback(c[1]);
+      b.onclick = _gen_callback(choice[1], idx);
 
       _textbox.appendChild(b);
       _textbox.appendChild(document.createElement('br'));
@@ -207,12 +235,11 @@ export function choice() {
       return null;
     }
 
-    return chosen_action;
+    return new ChoiceResult(chosen_action, chosen_idx);
   });
 };
 
 // A stack of sprites that can be manipulated
-export var idk = null;
 export class SpriteStack extends Array {
   check_type_error(element) {
     if (!(element instanceof SpriteThunk)) {
@@ -223,7 +250,6 @@ export class SpriteStack extends Array {
   push(element) {
     this.check_type_error(element);
     super.push(element);
-    console.log(this, element);
     return element;
   }
 
@@ -242,7 +268,6 @@ export class SpriteStack extends Array {
   }
 
   destroy() {
-    console.log("called!");
     while (this.length)
       this.pop().element.remove();
   }
@@ -270,6 +295,9 @@ export class Action {
   }
 }
 
+// No different from a normal action but is just a tag that this action prefers not to be waited on
+export class AsynchronousAction extends Action {}
+
 export class SpriteThunk extends Action {
   constructor(img, callback) {
     super(callback);
@@ -278,6 +306,12 @@ export class SpriteThunk extends Action {
 }
 
 class Choice extends Action {};
+class ChoiceResult {
+  constructor(scene_name, id) {
+    this.scene_name = scene_name;
+    this.id = id;
+  }
+};
 
 
 // This class should be a wrapper around animate.css and css.shake
@@ -306,10 +340,24 @@ export class Draw {
     element.dispatchEvent(new Event('animationend'));
   }
 
+  /**
+   * params is an object defining some of the following properties:
+   *  asynchronous - when false, blocks until the animtion is over
+   *  delay - when provided the delay until the animation begins
+   *  duration - duration of the animation
+   *  iterationCount - number of times to repeat the animation (or "infinite")
+   *  noCancel - when true, clicking will not cancel the animation
+   */
   static animate(element, animation_name, params) {
-    return new Action(async function() {
-      await Draw.do_animation(element, animation_name, params);
-    });
+    function callback() {
+          return Draw.do_animation(element, animation_name, params);
+    }
+
+    if (params.asynchronous = true) {
+      return new AsynchronousAction(callback);
+    } else {
+      return new Action(callback);
+    }
   }
 
   static async do_animation(element, animation_name, params) {
@@ -321,7 +369,7 @@ export class Draw {
 
     var duration = Draw._get_duration_or_delay_string(params.duration);
     var delay = Draw._get_duration_or_delay_string(params.delay);
-    var iterationCount = params.iterationCount;
+    var iterationCount = params.iterationCount; 
 
     var animation_resolver = null;
     var animation_done = new Promise((r) => { animation_resolver = r; });
@@ -333,7 +381,11 @@ export class Draw {
     }
     element.addEventListener('animationend', event_listener);
 
-    element.className = "";
+    if (params.noCancel) {
+      element.className = "nocancel";
+    } else {
+      element.className = "";
+    }
     element.style.animationDuration = duration;
     element.style.animationDelay = delay;
     element.style.animationIterationCount = iterationCount;
@@ -386,7 +438,9 @@ function _register_click_event(e) {
     // cancel animations
     var animated = document.querySelectorAll('.animated');
     for (var el of animated) {
-      Draw.cancel_animations(el);
+      if (!el.classList.contains('nocancel')) {
+        Draw.cancel_animations(el);
+      }
     }
   }
 }

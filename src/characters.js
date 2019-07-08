@@ -48,15 +48,11 @@ export class CombatCharacter extends Character {}
 
 // The main character
 export class Player extends CombatCharacter {
-  constructor() {
-    super();
+  constructor(name, color) {
+    super(name, color);
     this.party = new Party();
   }
 
-  save(key) {
-    // generate save state and write to localstorage under key
-    return "";
-  }
 }
 
 // A collection of Characters that are in the Player's part

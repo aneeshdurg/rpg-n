@@ -1,7 +1,8 @@
 <link rel="stylesheet" type="text/css" href="/animate.css"></link>
 <script type="module">
-import {Character} from './characters.js';
-import {Left, Right} from './positions.js'
+import {Game} from './game.js';
+import {Character, Player} from './characters.js';
+import {Left, Right, Center} from './positions.js'
 import * as ui from './ui.js';
 import {Scene} from './ui.js';
 
@@ -10,8 +11,10 @@ var Sonic = new Character('Sonic', 'blue');
 Sonic.set_asset('default', 'sonic.png');
 var s = Sonic.renderer;
 
-var Me = new Character('Me', 'green');
+var Me = new Player('Me', 'green');
 var me = Me.renderer;
+
+var game = new Game(Me);
 
 var intro = new Scene({
   name: 'intro',
@@ -20,16 +23,16 @@ var intro = new Scene({
     return [
       ui.setBackground('pic.png'),
       ui.spriteStack.push(
-        await ui.Draw.draw(Sonic.assets.default, Left, {"height": "100%"}, 'lightSpeedIn', {'duration': '500ms'})),
+        await ui.Draw.draw(Sonic.assets.default, Left, {"height": "100%"}, 'lightSpeedIn', {'duration': '10000ms'})),
       s("Hi! I'm Sonic!"),
       s("How are you?"),
       ui.choice(
-        ["I'm good! hbu?", doing_good],
+        ["I'm good! hbu?", 'doing_good'],
         ["bad.", ui.NO_ACTION],
       ),
       me("Bad."),
       s("Oh. I'm sorry to hear that."),
-      ui.jump(credits)
+      ui.jump('credits')
     ];
   },
 });
@@ -38,23 +41,23 @@ var doing_good = new Scene({
   name: 'doing_good',
   contents: function (context) {
     return [
-      me("I'm doing well! How about you?"), // TODO use context to get last answer text
+      me("I'm doing well! How about you?"),
       s("I'm swell!"),
-      ui.Draw.animate(ui.spriteStack.get(-1), 'bounce'),
+      ui.Draw.animate(ui.spriteStack.get(-1), 'bounce', {asynchronous: true, iterationCount: 'infinite', noCancel: true}),
       s("Thanks for asking!"),
-      ui.jump(credits),
+      ui.jump('credits'),
     ];
   },
 });
 
 var credits = new Scene({
-  name: 'intro',
+  name: 'credits',
   cleanup: true,
   contents: async function (context) {
     return [
       // TODO create scrolling credits.
       ui.spriteStack.push(
-        await ui.Draw.draw(Sonic.assets.default, Right, {"height": "100%"}, 'flipInY', {'duration': '500ms'})),
+        await ui.Draw.draw(Sonic.assets.default, Center, {"height": "100%"}, 'flipInY', {'duration': '500ms'})),
       s("This is the end of the game!"),
       s("Thanks for playing!"),
     ];
@@ -62,11 +65,16 @@ var credits = new Scene({
 });
 
 (async function() {
-  ui.initialize(document.body);
-  intro.run();
+  ui.initialize(document.body, [
+    intro,
+    doing_good,
+    credits,
+  ]);
+  intro.run(game);
 })();
 
 
+window.game = game;
 window.Sonic = Sonic;
 window.s = s;
 window.ui = ui;
