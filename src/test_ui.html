@@ -1,24 +1,71 @@
 <link rel="stylesheet" type="text/css" href="/animate.css"></link>
 <script type="module">
 import {Character} from './characters.js';
-import {Left} from './positions.js'
+import {Left, Right} from './positions.js'
 import * as ui from './ui.js';
+import {Scene} from './ui.js';
 
 import Typed from './typed/typed.js';
 var Sonic = new Character('Sonic', 'blue');
 Sonic.set_asset('default', 'sonic.png');
 var s = Sonic.renderer;
 
+var Me = new Character('Me', 'green');
+var me = Me.renderer;
+
+var intro = new Scene({
+  name: 'intro',
+  cleanup: true,
+  contents: async function(context) {
+    return [
+      ui.setBackground('pic.png'),
+      ui.spriteStack.push(
+        await ui.Draw.draw(Sonic.assets.default, Left, {"height": "100%"}, 'lightSpeedIn', {'duration': '500ms'})),
+      s("Hi! I'm Sonic!"),
+      s("How are you?"),
+      ui.choice(
+        ["I'm good! hbu?", doing_good],
+        ["bad.", ui.NO_ACTION],
+      ),
+      me("Bad."),
+      s("Oh. I'm sorry to hear that."),
+      ui.jump(credits)
+    ];
+  },
+});
+
+var doing_good = new Scene({
+  name: 'doing_good',
+  contents: function (context) {
+    return [
+      me("I'm doing well! How about you?"), // TODO use context to get last answer text
+      s("I'm swell!"),
+      ui.Draw.animate(ui.spriteStack.get(-1), 'bounce'),
+      s("Thanks for asking!"),
+      ui.jump(credits),
+    ];
+  },
+});
+
+var credits = new Scene({
+  name: 'intro',
+  cleanup: true,
+  contents: async function (context) {
+    return [
+      // TODO create scrolling credits.
+      ui.spriteStack.push(
+        await ui.Draw.draw(Sonic.assets.default, Right, {"height": "100%"}, 'flipInY', {'duration': '500ms'})),
+      s("This is the end of the game!"),
+      s("Thanks for playing!"),
+    ];
+  },
+});
+
 (async function() {
   ui.initialize(document.body);
-  await ui.NewScene(
-    ui.setBackground('pic.png'),
-    ui.spriteStack.push(
-      await ui.Draw.draw(Sonic.assets.default, Left, {"height": "100%"}, 'lightSpeedIn', {'duration': '10000ms'})),
-    s("Hi! I'm Sonic!"),
-    s("How are you?"),
-  );
+  intro.run();
 })();
+
 
 window.Sonic = Sonic;
 window.s = s;

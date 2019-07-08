@@ -15,6 +15,9 @@ var _state = {
 };
 
 export function initialize(parent) {
+  document.body.style.MozUserSelect="none";
+  document.body.style.userSelect="none"
+
   _parent = document.createElement('div');
 	_parent.style.width = "100%";
 	_parent.style.height = "100%";
@@ -33,6 +36,7 @@ export function initialize(parent) {
 	_main_display.style.background = "black";
 	_main_display.style.backgroundSize = "100% 100%";
   _main_display.style.transition = "background-image 1s linear";
+	_main_display.style.overflow = "hidden";
 
   _main_display_img = document.createElement('img');
   _main_display_img.style.width = "100%";
@@ -50,6 +54,7 @@ export function initialize(parent) {
 	_textbox.style.right = 0;
 	_textbox.style.margin = "auto";
 	_textbox.style.border = "5px solid #0000cc";
+	_textbox.style.overflow = "auto";
 
   _parent.appendChild(_main_display);
   _parent.appendChild(_textbox);
@@ -57,8 +62,12 @@ export function initialize(parent) {
 
 export function clearScene(duration) {
   return new Action(async function() {
-    await Draw.do_animation(_main_display_img, "fadeOut", {"duration": duration});
+    if (duration)
+      await Draw.do_animation(_main_display_img, "fadeOut", {"duration": duration});
+    spriteStack.destroy();
     _main_display_img.src = "";
+    _textbox.innerHTML = "";
+    //TODO redesign how the spriteStack is passed around
   });
 }
 
@@ -89,27 +98,55 @@ async function handle_text(text) {
   _state.hijacker = null;
 }
 
-// takes in a variadic list of Action's
-export async function Scene() {
-  for (var action of arguments) {
-    if (action instanceof Action) {
-      await action.run();
-    } else if (typeof(action) == 'string') {
-      reset_textbox(action);
-      await handle_text(action);
-      await _wait_for_click();
-    } else {
-      throw new Error("Unexpected argument");
+// TODO decide if this should manage it's own spritestack
+// TODO decide if it should subclass Action
+export class Scene {
+  constructor(params) {
+    this.name = params.name;
+    this.cleanup = Boolean(params.cleanup);
+    this.contents = params.contents;
+  }
+
+  async _scene(actions) {
+    for (var action of actions) {
+      if (action instanceof Action) {
+        var res = await action.run();
+        if (action instanceof Choice) {
+          if (res == null) {
+            continue;
+          } else if (res instanceof Scene) {
+            // TODO consider refactoring this to append res to an array so that we
+            // avoid adding another function to the call stack.
+            // TODO refactor this to get a key into a "Scene Table" instead of a
+            // function.
+            return res.run();
+          } else {
+            throw new Error("Expected an instance of ui.Scene");
+          }
+        }
+      } else if (typeof(action) == 'string') {
+        reset_textbox(action);
+        await handle_text(action);
+        await _wait_for_click();
+      } else {
+        throw new Error("Unexpected argument");
+      }
     }
   }
-}
 
-export async function NewScene() {
-  await clearScene().run();
-  return Scene.apply(this, arguments);
-}
+  async run() {
+    if (this.cleanup) {
+      await clearScene().run();
+    }
+    var contents = await this.contents();
+    // TODO validate that contents is array of Actions or strings
+    return this._scene(contents);
+  }
+};
 
-export function CombatScene(player_sprite, enemy_sprite) {}
+
+export class CombatScene extends Scene {}
+//export function CombatScene(player_sprite, enemy_sprite) {}
 
 export function setBackground(path, duration) {
   return new Action(async function() {
@@ -132,9 +169,47 @@ function exec(callback) { return new Action(callback); };
 // These functions return an action that can be executed by a scene
 function runGame() {};
 function runGameUntil() {};
-function choice() {};
 
-function jump() {};
+export function jump(next) {
+  // A "Choice" with no branches
+  return new Choice(function() {
+    return next;
+  });
+};
+
+export function choice() {
+  var choices = arguments;
+  return new Choice(async function() {
+    var resolver = null;
+    var choice_chosen = new Promise((r) => { resolver = r; });
+    var chosen_action = null;
+    for (var c of choices) {
+      // c[0] == choice text
+      // c[1] == choice action or NO_ACTION
+      // TODO use mousetrap for keyboard support
+      var b = document.createElement('button');
+      b.className = "choiceButton";
+      b.innerHTML = c[0];
+      function _gen_callback(callback) {
+        return function () {
+          resolver();
+          chosen_action = callback;
+        };
+      }
+      b.onclick = _gen_callback(c[1]);
+
+      _textbox.appendChild(b);
+      _textbox.appendChild(document.createElement('br'));
+    }
+
+    await choice_chosen;
+    if (chosen_action == NO_ACTION) {
+      return null;
+    }
+
+    return chosen_action;
+  });
+};
 
 // A stack of sprites that can be manipulated
 export var idk = null;
@@ -148,6 +223,7 @@ export class SpriteStack extends Array {
   push(element) {
     this.check_type_error(element);
     super.push(element);
+    console.log(this, element);
     return element;
   }
 
@@ -155,6 +231,20 @@ export class SpriteStack extends Array {
     this.check_type_error(element);
     super.unshift(element);
     return element;
+  }
+
+  get(index) {
+    if (index >= 0 && index < this.length) {
+      return this[index].element;
+    } else if (index < 0 && (-1 * index) <= this.length) {
+      return this[this.length + index].element;
+    }
+  }
+
+  destroy() {
+    console.log("called!");
+    while (this.length)
+      this.pop().element.remove();
   }
 }
 export var spriteStack = new SpriteStack();
@@ -168,6 +258,13 @@ export class Action {
     this.callback = callback;
   }
 
+  // TODO think about chaining events and text
+  //and(next_action) {
+  //  if (next_action instanceof Action || typeof(next_action) == 'string') {
+  //    this.and = next_action;
+  //  }
+  //}
+
   run() {
     return this.callback();
   }
@@ -179,6 +276,9 @@ export class SpriteThunk extends Action {
     this.element = img;
   }
 }
+
+class Choice extends Action {};
+
 
 // This class should be a wrapper around animate.css and css.shake
 
@@ -204,6 +304,12 @@ export class Draw {
   static cancel_animations(element) {
     Draw.remove_animations(element);
     element.dispatchEvent(new Event('animationend'));
+  }
+
+  static animate(element, animation_name, params) {
+    return new Action(async function() {
+      await Draw.do_animation(element, animation_name, params);
+    });
   }
 
   static async do_animation(element, animation_name, params) {
