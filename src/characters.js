@@ -1,4 +1,5 @@
 import * as items from './items.js';
+import {Assets} from './assets.js';
 
 // This class contains methods to help a scene format text
 export class Text {}
@@ -25,7 +26,10 @@ export class Character {
     this.renderer = null;
     this.construct_dialogue();
 
-    this.assets = {};
+    this.assets = new Assets();
+
+    // resolved promise
+    this.loaded = new Promise(r => { r(); });
   }
 
   construct_dialogue() {
@@ -38,8 +42,24 @@ export class Character {
     this.renderer = (new CharacterDialogue()).renderer;
   }
 
-  set_asset(name, img_src) {
-    this.assets[name] = img_src;
+  static from_obj(obj, loading_container) {
+    var character = new Character(obj.name, obj.color);
+
+    character.assets = new Assets();
+    if (obj.assets) {
+      if (obj.assets.audio)
+        character.assets.loadAudio(obj.assets.audio);
+      if (obj.assets.images)
+        character.assets.loadImages(obj.assets.images);
+    }
+
+    character.loaded = character.assets.wait_for_load(loading_container);
+    return character;
+  }
+
+  get_image(key) {
+    console.log(key, this.assets.images);
+    return this.assets.images.get(key);
   }
 }
 

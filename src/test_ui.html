@@ -7,8 +7,15 @@ import * as ui from './ui.js';
 import {Scene} from './ui.js';
 
 import Typed from './typed/typed.js';
-var Sonic = new Character('Sonic', 'blue');
-Sonic.set_asset('default', 'sonic.png');
+var Sonic = Character.from_obj({
+  name: 'Sonic',
+  color: 'blue',
+  assets: {
+    images: {
+      'default': 'sonic.png',
+    },
+  },
+});
 var s = Sonic.renderer;
 
 var Me = new Player('Me', 'green');
@@ -22,8 +29,8 @@ var intro = new Scene({
   contents: async function(context) {
     return [
       ui.setBackground('pic.png'),
-      ui.spriteStack.push(
-        await ui.Draw.draw(Sonic.assets.default, Left, {"height": "100%"}, 'lightSpeedIn', {'duration': '10000ms'})),
+      await ui.Draw.draw(
+          Sonic.get_image('default'), Left, {"height": "100%"}, 'lightSpeedIn'),
       s("Hi! I'm Sonic!"),
       s("How are you?"),
       ui.choice(
@@ -43,7 +50,7 @@ var doing_good = new Scene({
     return [
       me("I'm doing well! How about you?"),
       s("I'm swell!"),
-      ui.Draw.animate(ui.spriteStack.get(-1), 'bounce', {asynchronous: true, iterationCount: 'infinite', noCancel: true}),
+      ui.Draw.animate(Sonic.get_image('default'), 'bounce', {asynchronous: true, iterationCount: 'infinite', noCancel: true}),
       s("Thanks for asking!"),
       ui.jump('credits'),
     ];
@@ -56,8 +63,7 @@ var credits = new Scene({
   contents: async function (context) {
     return [
       // TODO create scrolling credits.
-      ui.spriteStack.push(
-        await ui.Draw.draw(Sonic.assets.default, Center, {"height": "100%"}, 'flipInY', {'duration': '500ms'})),
+      await ui.Draw.draw(Sonic.get_image('default'), Center, {"height": "100%"}, 'flipInY', {'duration': '500ms'}),
       s("This is the end of the game!"),
       s("Thanks for playing!"),
     ];
@@ -65,6 +71,7 @@ var credits = new Scene({
 });
 
 (async function() {
+  await Sonic.loaded;
   ui.initialize(document.body, [
     intro,
     doing_good,

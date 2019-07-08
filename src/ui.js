@@ -120,7 +120,7 @@ export class Scene {
   async _scene(game, actions) {
     for (var idx in actions) {
       var action = actions[idx];
-      game.player.history.push(HistoryItem.scene_progress(this.name, idx));
+      game.history.push(HistoryItem.scene_progress(this.name, idx));
 
       if (action instanceof Action) {
         var res = null;
@@ -130,7 +130,7 @@ export class Scene {
           res = await action.run();
 
         if (action instanceof Choice) {
-          game.player.history.push(HistoryItem.choice(this.name, idx, ));
+          game.history.push(HistoryItem.choice(this.name, idx, ));
           if (res == null) {
             continue;
           } else if (res instanceof ChoiceResult) {
@@ -141,7 +141,7 @@ export class Scene {
               throw new Error("Could not find scene '" + res.scene_name + "'");
             }
 
-            game.player.history.push(HistoryItem.choice(this.name, idx, res.id));
+            game.history.push(HistoryItem.choice(this.name, idx, res.id));
             return next_scene.run(game);
           } else {
             throw new Error("Expected an instance of ui.ChoiceResult");
@@ -369,7 +369,7 @@ export class Draw {
 
     var duration = Draw._get_duration_or_delay_string(params.duration);
     var delay = Draw._get_duration_or_delay_string(params.delay);
-    var iterationCount = params.iterationCount; 
+    var iterationCount = params.iterationCount || "";
 
     var animation_resolver = null;
     var animation_done = new Promise((r) => { animation_resolver = r; });
@@ -390,6 +390,11 @@ export class Draw {
     element.style.animationDelay = delay;
     element.style.animationIterationCount = iterationCount;
     element.classList.add("animated", animation_name);
+    console.log("---");
+    console.log(element);
+    console.log(duration);
+    console.log(delay);
+    console.log(iterationCount);
 
     return animation_done;
   }
@@ -403,27 +408,28 @@ export class Draw {
   /**
    * img_params, animation, animation_params are optional
    */
-  static async draw(image_src, position, img_params, animation, animation_params) {
-    var img = document.createElement('img');
-    var resolver = null;
-    var img_loaded = new Promise((r) => { resolver = r; });
-    img.src = image_src;
-    img.onload = function() {
-      resolver();
-    }
-
-    await img_loaded;
+  static async draw(element, position, img_params, animation, animation_params) {
     async function callback() {
-      Draw._set_style(img, position);
-      if (img_params)
-        Draw._set_style(img, img_params);
+      // remove element if it was previously somewhere else
+      element.remove();
+      element.style.display = "";
 
-      _main_display.appendChild(img);
+      Draw._set_style(element, position);
+      if (img_params)
+        Draw._set_style(element, img_params);
+
+      _main_display.appendChild(element);
 
       if (animation)
-        await Draw.do_animation(img, animation, animation_params);
+        await Draw.do_animation(element, animation, animation_params);
     }
-    return new SpriteThunk(img, callback);
+    return new SpriteThunk(element, callback);
+  }
+
+  static async remove(element) {
+    element.remove();
+    element.style.display = "none";
+    document.appendChild(element);
   }
 }
 
