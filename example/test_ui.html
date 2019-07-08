@@ -1,17 +1,32 @@
-<link rel="stylesheet" type="text/css" href="/animate.css"></link>
+<link rel="stylesheet" type="text/css" href="/src/css/animate.css"></link>
 <script type="module">
-import {Game} from './game.js';
-import {Character, Player} from './characters.js';
-import {Left, Right, Center} from './positions.js'
-import * as ui from './ui.js';
-import {Scene} from './ui.js';
+import {assets} from '/src/assets.js';
+import {Game} from '/src/game.js';
+import {Character, Player} from '/src/characters.js';
+import {Left, Right, Center} from '/src/positions.js'
+import * as ui from '/src/ui.js';
+import {Scene} from '/src/ui.js';
 
-import Typed from './typed/typed.js';
+import Typed from '/src/typed/typed.js';
+
+assets.loadImages({
+  base_path: './assets/backgrounds',
+  mario: 'mario_background.png',
+  wasteland: 'creepy_wasteland.jpg',
+});
+
+assets.loadAudio({
+  base_path: './assets/audio/',
+  happy: '335361__cabled-mess__little-happy-tune-22-10.wav',
+  coin: '135936__bradwesson__collectcoin.wav',
+});
+
 var Sonic = Character.from_obj({
   name: 'Sonic',
   color: 'blue',
   assets: {
     images: {
+      base_path: './assets/sonic',
       'default': 'sonic.png',
     },
   },
@@ -23,12 +38,25 @@ var me = Me.renderer;
 
 var game = new Game(Me);
 
+var splashscreen = new Scene({
+  name: 'splashscreen',
+  cleanup: true,
+  contents: async function(context) {
+    return [
+      "Welcome to the rpg-n demo!",
+      ui.jump('intro'),
+    ]
+  },
+});
+
 var intro = new Scene({
   name: 'intro',
   cleanup: true,
   contents: async function(context) {
     return [
-      ui.setBackground('pic.png'),
+      ui.setBackground(assets.images.get('mario')),
+      ui.playAudio(
+        assets.audio.get('happy'), {asynchronous: true, loop: true}),
       await ui.Draw.draw(
           Sonic.get_image('default'), Left, {"height": "100%"}, 'lightSpeedIn'),
       s("Hi! I'm Sonic!"),
@@ -52,6 +80,8 @@ var doing_good = new Scene({
       s("I'm swell!"),
       ui.Draw.animate(Sonic.get_image('default'), 'bounce', {asynchronous: true, iterationCount: 'infinite', noCancel: true}),
       s("Thanks for asking!"),
+      ui.Draw.animate(Sonic.get_image('default'), 'fadeOut', {asynchronous: true}),
+      ui.clearScene(500), // TODO make clearScene apply fadeOut to everything on the display
       ui.jump('credits'),
     ];
   },
@@ -65,19 +95,24 @@ var credits = new Scene({
       // TODO create scrolling credits.
       await ui.Draw.draw(Sonic.get_image('default'), Center, {"height": "100%"}, 'flipInY', {'duration': '500ms'}),
       s("This is the end of the game!"),
+      ui.playAudio(
+        assets.audio.get('coin'), {asynchronous: true}),
       s("Thanks for playing!"),
     ];
   },
 });
 
+
 (async function() {
   await Sonic.loaded;
+  await assets.wait_for_load();
   ui.initialize(document.body, [
+    splashscreen,
     intro,
     doing_good,
     credits,
   ]);
-  intro.run(game);
+  splashscreen.run(game);
 })();
 
 
@@ -85,6 +120,7 @@ window.game = game;
 window.Sonic = Sonic;
 window.s = s;
 window.ui = ui;
+window.assets = assets;
 window.Typed = Typed;
 </script>
 <body>

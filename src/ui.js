@@ -41,11 +41,9 @@ export function initialize(parent, scene_list) {
   _main_display.style.transition = "background-image 1s linear";
 	_main_display.style.overflow = "hidden";
 
-  _main_display_img = document.createElement('img');
-  _main_display_img.style.width = "100%";
-  _main_display_img.style.height = "100%";
+  //_main_display_img = document.createElement('img');
 
-  _main_display.appendChild(_main_display_img);
+  //_main_display.appendChild(_main_display_img);
 
   _textbox = document.createElement('div');
   _textbox.id = "rpgn-textbox";
@@ -70,12 +68,63 @@ export function initialize(parent, scene_list) {
   }
 }
 
+function apply_background_style(element) {
+  element.style.width = "100%";
+  element.style.height = "100%";
+  element.style.display = "";
+}
+
+// TODO allow fading out audio
+// TODO allow a fixed number of iterations of audio
+export function playAudio(audio, params) {
+  var resolver = null;
+  var audio_done = new Promise((r) => { resolver = r; });
+
+  function callback() {
+    console.log("playing audio", audio);
+    if (params.loop) {
+      audio.loop = true;
+    } else {
+      audio.loop = false;
+    }
+
+    if (!params.noReset) {
+      audio.currentTime = 0;
+    }
+
+    audio.onended = function() { resolver(); };
+    audio.play();
+
+    return audio_done;
+  }
+
+  if (params.asynchronous) {
+    return new AsynchronousAction(callback);
+  } else {
+    return new Action(callback);
+  }
+}
+
+function pause_all_audio() {
+  for (var a of document.querySelectorAll('audio')) {
+    a.pause();
+  }
+}
+
 export function clearScene(duration) {
   return new Action(async function() {
     if (duration)
       await Draw.do_animation(_main_display_img, "fadeOut", {"duration": duration});
+
+    pause_all_audio();
     spriteStack.destroy();
-    _main_display_img.src = "";
+
+    if (_main_display_img) {
+      _main_display_img.remove();
+      _main_display_img.style.display = "";
+      _main_display_img = null;
+    }
+
     _textbox.innerHTML = "";
     //TODO redesign how the spriteStack is passed around
   });
@@ -173,19 +222,14 @@ export class Scene {
 export class CombatScene extends Scene {}
 //export function CombatScene(player_sprite, enemy_sprite) {}
 
-export function setBackground(path, duration) {
+export function setBackground(element, duration) {
   return new Action(async function() {
-    var resolver = null;
-    var loaded = new Promise((r) => { resolver = r; });
-    _main_display_img.onload = function() {
-      resolver();
-    }
-
-    _main_display_img.src = path;
-    await loaded;
+    element.remove();
+    apply_background_style(element);
+    _main_display.insertBefore(element, _main_display.childNodes[0]);
+    _main_display_img = element;
 
     await Draw.do_animation(_main_display_img, "fadeIn", {"duration": duration});
-    return;
   });
 }
 
@@ -298,6 +342,7 @@ export class Action {
 // No different from a normal action but is just a tag that this action prefers not to be waited on
 export class AsynchronousAction extends Action {}
 
+// TODO remove spriteThunk
 export class SpriteThunk extends Action {
   constructor(img, callback) {
     super(callback);
@@ -390,11 +435,6 @@ export class Draw {
     element.style.animationDelay = delay;
     element.style.animationIterationCount = iterationCount;
     element.classList.add("animated", animation_name);
-    console.log("---");
-    console.log(element);
-    console.log(duration);
-    console.log(delay);
-    console.log(iterationCount);
 
     return animation_done;
   }

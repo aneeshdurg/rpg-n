@@ -1,7 +1,6 @@
-<link rel="stylesheet" type="text/css" href="/animate.css"></link>
 <script type="module">
-import * as Assets from './assets.js';
-import {assets} from './assets.js';
+import * as Assets from '/src/assets.js';
+import {assets} from '/src/assets.js';
 
 var resolver = null;
 var button_clicked = new Promise((r) => { resolver = r; });
@@ -10,7 +9,7 @@ b.onclick = function() { resolver(); };
 document.body.appendChild(b);
 
 var music = {
-  'base_path': './assets',
+  'base_path': './assets/audio/',
   'coin': '135936__bradwesson__collectcoin.wav',
   'error': '142608__autistic-lucario__error.wav',
   'happy': '335361__cabled-mess__little-happy-tune-22-10.wav',
@@ -18,10 +17,10 @@ var music = {
 }
 
 console.log(music);
-console.log(Assets);
+console.log(assets);
 
 (async function() {
-  await Assets.loadMusic(music);
+  await assets.loadAudio(music);
   console.log("loaded");
   await button_clicked;
   console.log("interaction done!");
@@ -31,6 +30,7 @@ console.log(Assets);
 })();
 
 window.Assets = Assets;
+window.assets = assets;
 </script>
 <body>
 </body>

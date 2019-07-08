@@ -69,7 +69,7 @@ export class Assets {
       }
       img.addEventListener('load', _gen_callback(resolver));
       img.style.display = "none";
-      img.src = images[key];
+      img.src = base_path + images[key];
       document.body.appendChild(img);
 
       if (this.images.get(key)) {
