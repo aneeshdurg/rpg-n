@@ -7,6 +7,8 @@ export const UNREACHABLE = Symbol('UNREACHABLE');
 export const WAIT_FOR_CLICK = Symbol('WAIT_FOR_CLICK');
 export const EXECUTED_SCENE = Symbol('EXECUTED_SCENE');
 
+// TODO implement pause + save menu
+
 var _parent = null;
 var _main_display = null;
 var _main_display_img = null;
@@ -23,40 +25,15 @@ export function initialize(parent, scene_list) {
   document.body.style.userSelect="none"
 
   _parent = document.createElement('div');
-	_parent.style.width = "100%";
-	_parent.style.height = "100%";
-  _parent.id = "rpgn-parent";
+  _parent.classList.add("rpgn-parent");
   _parent.onclick = _register_click_event;
   parent.appendChild(_parent);
 
   _main_display = document.createElement('div');
-  _main_display.id = "rpgn-main_display";
-	_main_display.style.width = "90%";
-	_main_display.style.height = "70%";
-	_main_display.style.position = "absolute";
-	_main_display.style.left = 0;
-	_main_display.style.right = 0;
-	_main_display.style.margin = "auto";
-	_main_display.style.background = "black";
-	_main_display.style.backgroundSize = "100% 100%";
-  _main_display.style.transition = "background-image 1s linear";
-	_main_display.style.overflow = "hidden";
-
-  //_main_display_img = document.createElement('img');
-
-  //_main_display.appendChild(_main_display_img);
+  _main_display.classList.add("rpgn-main_display");
 
   _textbox = document.createElement('div');
-  _textbox.id = "rpgn-textbox";
-  _textbox.style.width = "90%";
-	_textbox.style.height = "25%";
-	_textbox.style.position = "absolute";
-	_textbox.style.bottom = 0;
-	_textbox.style.left = 0;
-	_textbox.style.right = 0;
-	_textbox.style.margin = "auto";
-	_textbox.style.border = "5px solid #0000cc";
-	_textbox.style.overflow = "auto";
+  _textbox.classList.add("rpgn-textbox");
 
   _parent.appendChild(_main_display);
   _parent.appendChild(_textbox);
