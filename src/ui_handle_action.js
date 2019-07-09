@@ -5,7 +5,6 @@ import {History, HistoryItem} from './game.js';
 export const NO_ACTION = Symbol('NO_ACTION');
 export const UNREACHABLE = Symbol('UNREACHABLE');
 export const WAIT_FOR_CLICK = Symbol('WAIT_FOR_CLICK');
-export const EXECUTED_SCENE = Symbol('EXECUTED_SCENE');
 
 var _parent = null;
 var _main_display = null;
@@ -78,12 +77,11 @@ function apply_background_style(element) {
 // TODO allow fading out audio
 // TODO allow a fixed number of iterations of audio
 export function playAudio(audio, params) {
-  params = params || {};
-
   var resolver = null;
   var audio_done = new Promise((r) => { resolver = r; });
 
   function callback() {
+    console.log("playing audio", audio);
     if (params.loop) {
       audio.loop = true;
     } else {
@@ -171,7 +169,7 @@ export class Scene {
   async handle_action(game, action, idx) {
     var res = null;
     if (action instanceof AsynchronousAction)
-      res = {"promise": action.run()};
+      res = action.run();
     else
       res = await action.run();
 
@@ -187,8 +185,7 @@ export class Scene {
         }
 
         game.history.push(HistoryItem.choice(this.name, idx, res.id));
-        await next_scene.run(game);
-        return EXECUTED_SCENE;
+        return next_scene.run(game);
       } else {
         throw new Error("Expected an instance of ui.ChoiceResult");
       }
@@ -203,9 +200,9 @@ export class Scene {
       game.history.push(HistoryItem.scene_progress(this.name, idx));
 
       if (action instanceof Action) {
-        var res = await this.handle_action(game, action, idx);
-        if (res == EXECUTED_SCENE)
-          return;
+        console.log("Handling action", action);
+        await this.handle_action(game, action, idx);
+        console.log("Handled action", action);
       } else if (typeof(action) == 'string') {
         reset_textbox();
         await handle_text(action);
@@ -213,14 +210,12 @@ export class Scene {
       } else if (action instanceof Sequence) {
         reset_textbox();
         while (!action.done) {
-          var val = await action.get();
+          var val = action.get();
           if (typeof(val) == 'string') {
             await handle_text(val);
             await _wait_for_click();
           } else if (val instanceof Action) {
-            var res = await this.handle_action(game, val, idx);
-            if (res == EXECUTED_SCENE)
-              return;
+            await this.handle_action(game, action, idx);
           }
         }
       } else {
@@ -559,10 +554,7 @@ export class Delay {
 export class Sequence {
   constructor() {
     // check arguments types
-    this.values = [];
-    for (var argument of arguments)
-      this.values.push(argument);
-
+    this.values = arguments;
     this.done = false;
   }
 
@@ -571,7 +563,7 @@ export class Sequence {
       if (!this.values.length)
         return null;
 
-      var val = this.values.shift();
+      var val = this.values.pop();
       if (this.values.length == 0)
         this.done = true;
 

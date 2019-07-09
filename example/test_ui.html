@@ -6,6 +6,7 @@ import {Character, Player} from '/src/characters.js';
 import {Left, Right, Center} from '/src/positions.js'
 import * as ui from '/src/ui.js';
 import {Scene} from '/src/ui.js';
+import * as Text from '/src/text.js';
 
 import Typed from '/src/typed/typed.js';
 
@@ -41,7 +42,7 @@ var game = new Game(Me);
 var splashscreen = new Scene({
   name: 'splashscreen',
   cleanup: true,
-  contents: async function(context) {
+  contents: async function(game) {
     return [
       "Welcome to the rpg-n demo!",
       ui.jump('intro'),
@@ -52,7 +53,7 @@ var splashscreen = new Scene({
 var intro = new Scene({
   name: 'intro',
   cleanup: true,
-  contents: async function(context) {
+  contents: async function(game) {
     return [
       ui.setBackground(assets.images.get('mario')),
       ui.playAudio(
@@ -74,7 +75,7 @@ var intro = new Scene({
 
 var doing_good = new Scene({
   name: 'doing_good',
-  contents: function (context) {
+  contents: function (game) {
     return [
       me("I'm doing well! How about you?"),
       s("I'm swell!"),
@@ -90,14 +91,15 @@ var doing_good = new Scene({
 var credits = new Scene({
   name: 'credits',
   cleanup: true,
-  contents: async function (context) {
+  contents: async function (game) {
     return [
       // TODO create scrolling credits.
       await ui.Draw.draw(Sonic.get_image('default'), Center, {"height": "100%"}, 'flipInY', {'duration': '500ms'}),
-      s("This is the end of the game!"),
-      ui.playAudio(
-        assets.audio.get('coin'), {asynchronous: true}),
-      s("Thanks for playing!"),
+      new ui.Sequence(
+        s("This is the end of the game!"),
+        ui.playAudio(assets.audio.get('coin'), {asynchronous: true}),
+        Text.center_align(s("Thanks for playing!")),
+      ),
     ];
   },
 });

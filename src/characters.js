@@ -1,8 +1,6 @@
 import * as items from './items.js';
 import {Assets} from './assets.js';
-
-// This class contains methods to help a scene format text
-export class Text {}
+import * as Text from './text.js';
 
 export class Dialogue {
   render(text) {
@@ -36,7 +34,7 @@ export class Character {
     var that = this;
     class CharacterDialogue extends Dialogue {
       render(text) {
-        return "<span style=\"color:" + that.color + "\">" + that.name + "</span>: " + text;
+        return Text.with_color(that.color, that.name) + ": " + text;
       }
     }
     this.renderer = (new CharacterDialogue()).renderer;
@@ -58,7 +56,6 @@ export class Character {
   }
 
   get_image(key) {
-    console.log(key, this.assets.images);
     return this.assets.images.get(key);
   }
 }
