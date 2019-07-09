@@ -58,17 +58,18 @@ var intro = new Scene({
     return [
       ui.setBackground(assets.images.get('mario')),
       ui.playAudio(
-        assets.audio.get('happy'), {asynchronous: true, loop: true}),
+        assets.audio.get('happy'), {asynchronous: true, loop: true, fadeIn: true}),
       await ui.Draw.draw(
           Sonic.get_image('default'), Left, {"height": "100%"}, 'lightSpeedIn'),
       s("Hi! I'm Sonic!"),
       s("How are you?"),
       ui.choice(
-        ["I'm good! hbu?", 'doing_good'],
-        ["bad.", ui.NO_ACTION],
+        ["I'm good! hbu?", 'doing_good', {'backgroundColor': 'rgba(100, 200, 0, 1)'}],
+        ["bad.", ui.NO_ACTION, {'backgroundColor': 'rgba(200, 50, 0, 1)'}],
       ),
       me("Bad."),
       s("Oh. I'm sorry to hear that."),
+      new ui.Delay(500),
       ui.jump('credits')
     ];
   },
@@ -82,8 +83,8 @@ var doing_good = new Scene({
       s("I'm swell!"),
       ui.Draw.animate(Sonic.get_image('default'), 'bounce', {asynchronous: true, iterationCount: 'infinite', noCancel: true}),
       s("Thanks for asking!"),
-      ui.Draw.animate(Sonic.get_image('default'), 'fadeOut', {asynchronous: true}),
-      ui.clearScene(500), // TODO make clearScene apply fadeOut to everything on the display
+      ui.clearScene(1000), // TODO make clearScene apply fadeOut to everything on the display
+      new ui.Delay(500),
       ui.jump('credits'),
     ];
   },
@@ -107,8 +108,11 @@ var credits = new Scene({
 
 
 (async function() {
+  console.log("waiting for sanic");
   await Sonic.loaded;
+  console.log("waiting for assets");
   await assets.wait_for_load();
+  console.log("Starting game");
   ui.initialize(document.body, [
     splashscreen,
     intro,

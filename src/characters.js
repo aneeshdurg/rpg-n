@@ -60,9 +60,6 @@ export class Character {
   }
 }
 
-// A character capable of fighting
-export class CombatCharacter extends Character {}
-
 // The main character
 export class Player extends CombatCharacter {
   constructor(name, color) {

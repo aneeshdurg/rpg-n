@@ -12,6 +12,7 @@ export const EXECUTED_SCENE = Symbol('EXECUTED_SCENE');
 var _parent = null;
 var _main_display = null;
 var _main_display_img = null;
+var _pause_menu = null;
 var _textbox = null;
 var _state = {
   hijacker: null,
@@ -20,20 +21,36 @@ var _state = {
 
 var _scene_map = new Map();
 
+export function hide_textbox() {
+  _textbox.style.display = "none";
+}
+
+export function showw_textbox() {
+  _textbox.style.display = "";
+}
+
+export function toggle_textbox() {
+  if (_textbox.style.display == "")
+    _textbox.style.display = "none";
+  else if (_textbox.style.display == "none")
+    _textbox.style.display = "";
+}
+
 export function initialize(parent, scene_list) {
   document.body.style.MozUserSelect="none";
   document.body.style.userSelect="none"
 
   _parent = document.createElement('div');
   _parent.classList.add("rpgn-parent");
-  _parent.onclick = _register_click_event;
   parent.appendChild(_parent);
 
   _main_display = document.createElement('div');
   _main_display.classList.add("rpgn-main_display");
+  _main_display.onclick = toggle_textbox;
 
   _textbox = document.createElement('div');
   _textbox.classList.add("rpgn-textbox");
+  _textbox.onclick = _register_click_event;
 
   _parent.appendChild(_main_display);
   _parent.appendChild(_textbox);
@@ -44,6 +61,21 @@ export function initialize(parent, scene_list) {
     }
     _scene_map.set(scene.name, scene);
   }
+
+  _pause_menu = document.createElement("div");
+  _pause_menu.classList.add("pause");
+}
+
+export async function summon_pause() {
+  _parent.appendChild(_pause_menu);
+  _pause_menu.paused_music = await pause_all_audio();
+  game.pause_handler(_pause_menu);
+}
+
+export function remove_pause() {
+  while(_pause_menu.paused_music.length)
+    playAudio(_pause_menu.paused_music.pop(), {noReset: true, asynchronous: true}).run();
+  _pause_menu.remove();
 }
 
 function apply_background_style(element) {
@@ -54,8 +86,44 @@ function apply_background_style(element) {
 
 // TODO allow fading out audio
 // TODO allow a fixed number of iterations of audio
+export async function transitionVolume(audio, targetVolume, params) {
+  params = params || {};
+  var freq = params.freq || 100;
+  var step = params.step || 0.1;
+
+  var resolver = null;
+  var volume_changed = new Promise((r) => { resolver = r; });
+  (function changeVolume() {
+    if (Math.abs(targetVolume - audio.volume) <= step) {
+      audio.volume = targetVolume;
+      resolver();
+      return;
+    }
+    if (audio.volume < targetVolume) {
+      audio.volume += step;
+    } else if (audio.volume > targetVolume) {
+      audio.volume -= step;
+    }
+
+    if (audio.volume != targetVolume)
+      setTimeout(changeVolume, freq);
+  })();
+
+  await volume_changed;
+}
+
+/**
+ * params:
+ *  loop
+ *  noReset
+ *  fadeIn
+ *  volume
+ *
+ * TODO add params to control fadeIn step/time
+ */
 export function playAudio(audio, params) {
   params = params || {};
+  params.volume = params.volume || 1;
 
   var resolver = null;
   var audio_done = new Promise((r) => { resolver = r; });
@@ -72,6 +140,14 @@ export function playAudio(audio, params) {
     }
 
     audio.onended = function() { resolver(); };
+
+    if (params.fadeIn) {
+      audio.volume = 0;
+      transitionVolume(audio, params.volume);
+    } else {
+      audio.volume = params.volume;
+    }
+
     audio.play();
 
     return audio_done;
@@ -84,56 +160,57 @@ export function playAudio(audio, params) {
   }
 }
 
-function pause_all_audio() {
+async function pause_all_audio() {
+  var paused_audio = [];
   for (var a of document.querySelectorAll('audio')) {
-    a.pause();
+    if (!a.paused) {
+      await transitionVolume(a, 0);
+      a.pause();
+      paused_audio.push(a);
+    }
   }
+  return paused_audio;
 }
 
 export function clearScene(duration) {
   return new Action(async function() {
-    if (duration)
-      await Draw.do_animation(_main_display_img, "fadeOut", {"duration": duration});
+    var waiters = [];
+    var elements = (function() {
+      var nodes = [];
+      for (var n of _main_display.childNodes)
+        nodes.push(n);
+      return nodes;
+    })();
 
-    pause_all_audio();
-    spriteStack.destroy();
+    for (var element of elements) {
+      if (duration) {
+        waiters.push(Draw.do_animation(element, "fadeOut", {
+          duration: duration,
+          noCancel: true,
+        }));
+      }
+    }
+    waiters.push(pause_all_audio());
+
+    for (var waiter of waiters)
+      await waiter;
+
+    for (var element of elements) {
+      element.remove();
+      element.style.display = "none";
+    }
 
     if (_main_display_img) {
       _main_display_img.remove();
-      _main_display_img.style.display = "";
       _main_display_img = null;
     }
 
     _textbox.innerHTML = "";
-    //TODO redesign how the spriteStack is passed around
   });
 }
 
 function reset_textbox() {
   _textbox.innerHTML = "";
-}
-
-async function handle_text(text) {
-  var resolver = null;
-  var typing_done = new Promise((r) => { resolver = r; });
-  var p = document.createElement('p');
-  _textbox.appendChild(p);
-  var typed = new Typed(p, {
-    strings: [text],
-    showCursor: false,
-    typeSpeed: 40, // TODO make this customizable
-    onComplete: resolver,
-    onDestroy: resolver,
-  });
-
-  function kill_typer() {
-    typed.destroy();
-    p.innerHTML = text;
-  }
-  _state.hijacker = kill_typer;
-
-  await typing_done;
-  _state.hijacker = null;
 }
 
 // TODO decide if this should manage it's own spritestack
@@ -143,6 +220,29 @@ export class Scene {
     this.name = params.name;
     this.cleanup = Boolean(params.cleanup);
     this.contents = params.contents;
+  }
+
+  async handle_text(text) {
+    var resolver = null;
+    var typing_done = new Promise((r) => { resolver = r; });
+    var p = document.createElement('p');
+    _textbox.appendChild(p);
+    var typed = new Typed(p, {
+      strings: [text],
+      showCursor: false,
+      typeSpeed: 40, // TODO make this customizable
+      onComplete: resolver,
+      onDestroy: resolver,
+    });
+
+    function kill_typer() {
+      typed.destroy();
+      p.innerHTML = text;
+    }
+    _state.hijacker = kill_typer;
+
+    await typing_done;
+    _state.hijacker = null;
   }
 
   async handle_action(game, action, idx) {
@@ -179,20 +279,22 @@ export class Scene {
       var action = actions[idx];
       game.history.push(HistoryItem.scene_progress(this.name, idx));
 
-      if (action instanceof Action) {
+      if (action instanceof Delay) {
+        await action.wait();
+      } else if (action instanceof Action) {
         var res = await this.handle_action(game, action, idx);
         if (res == EXECUTED_SCENE)
           return;
       } else if (typeof(action) == 'string') {
         reset_textbox();
-        await handle_text(action);
+        await this.handle_text(action);
         await _wait_for_click();
       } else if (action instanceof Sequence) {
         reset_textbox();
         while (!action.done) {
           var val = await action.get();
           if (typeof(val) == 'string') {
-            await handle_text(val);
+            await this.handle_text(val);
             await _wait_for_click();
           } else if (val instanceof Action) {
             var res = await this.handle_action(game, val, idx);
@@ -218,9 +320,6 @@ export class Scene {
   }
 };
 
-
-export class CombatScene extends Scene {}
-//export function CombatScene(player_sprite, enemy_sprite) {}
 
 export function setBackground(element, duration) {
   return new Action(async function() {
@@ -257,9 +356,14 @@ export function choice() {
       var choice = choices[idx]
       // choice[0] == choice text
       // choice[1] == choice action or NO_ACTION
+      // choice[2] == optional style for button
       // TODO use mousetrap for keyboard support
       var b = document.createElement('button');
       b.className = "choiceButton";
+      if (choice.length >= 3) {
+        Draw.set_style(b, choice[2]);
+      }
+
       b.innerHTML = choice[0];
       function _gen_callback(callback, idx) {
         return function () {
@@ -439,7 +543,7 @@ export class Draw {
     return animation_done;
   }
 
-  static _set_style(element, style) {
+  static set_style(element, style) {
     for (var key of Object.keys(style)) {
       element.style[key] = style[key];
     }
@@ -454,9 +558,9 @@ export class Draw {
       element.remove();
       element.style.display = "";
 
-      Draw._set_style(element, position);
+      Draw.set_style(element, position);
       if (img_params)
-        Draw._set_style(element, img_params);
+        Draw.set_style(element, img_params);
 
       _main_display.appendChild(element);
 
