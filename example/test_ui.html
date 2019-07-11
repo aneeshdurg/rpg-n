@@ -12,9 +12,10 @@ import * as Text from '/src/text.js';
 import Typed from '/src/typed/typed.js';
 
 assets.loadImages({
-  base_path: './assets/backgrounds',
-  mario: 'mario_background.png',
-  wasteland: 'creepy_wasteland.jpg',
+  base_path: './assets',
+  mario: 'backgrounds/mario_background.png',
+  wasteland: 'backgrounds/creepy_wasteland.jpg',
+  coin: 'coin.png',
 });
 
 assets.loadAudio({
@@ -69,6 +70,19 @@ var intro = new Scene({
       ),
       me("Bad."),
       s("Oh. I'm sorry to hear that."),
+      await ui.Draw.draw(assets.images.get('coin'), Center, {height: "10%"}),
+      s("This is a coin, let's toss it and see where it lands!"),
+      ui.Draw.animate(assets.images.get('coin'), 'flipInX'),
+      new ui.ExecAction((game) => {
+        if (Math.random() < 0.5) {
+          return new ui.Sequence(
+            s("It landed on heads!"),
+            new ui.Delay(500),
+            s("You are a lucky person..."),
+          );
+        }
+        return s("It landed on tails. I guess you have to die now.");
+      }),
       new ui.Delay(500),
       ui.jump('credits')
     ];
@@ -102,6 +116,8 @@ var credits = new Scene({
         ui.playAudio(assets.audio.get('coin'), {asynchronous: true}),
         Text.center_align(s("Thanks for playing!")),
       ),
+      new ui.Delay(1000),
+      ui.HIDE_TEXTBOX,
     ];
   },
 });
@@ -113,7 +129,7 @@ var credits = new Scene({
   console.log("waiting for assets");
   await assets.wait_for_load();
   console.log("Starting game");
-  ui.initialize(document.body, [
+  ui.initialize(document.body, game, [
     splashscreen,
     intro,
     doing_good,

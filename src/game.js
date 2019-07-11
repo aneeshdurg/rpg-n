@@ -15,6 +15,39 @@ export class Game {
     return "history" + (key ? "." + key : "");
   }
 
+  setup_pause_menu(parent) {
+    var that = this;
+
+    this._container = document.createElement("div");
+    this._container.className = "pause-element";
+
+    this._save_input = document.createElement("input");
+    this._save_input.placeholder = "Enter save key (default: '')";
+
+    this._save_button = document.createElement("button");
+    this._save_button.innerHTML = "save";
+    this._save_button.onclick = function() {
+      that.save(that._save_input.value);
+    }
+
+    this._load_button = document.createElement("button");
+    this._load_button.innerHTML = "load";
+    this._load_button.onclick = function() {
+      // TODO catch error and alert!
+      that.load(that._save_input.value);
+    }
+
+    this._container.appendChild(this._save_input);
+    this._container.appendChild(document.createElement("br"));
+    this._container.appendChild(this._save_button);
+    this._container.appendChild(document.createElement("br"));
+    this._container.appendChild(this._load_button);
+
+    parent.appendChild(this._container);
+  }
+
+  pause_handler(parent) { }
+
   load(key) {
     key = Game.get_history_key_name(key);
     var history = localStorage.getItem(key);
@@ -23,7 +56,7 @@ export class Game {
     }
 
     this.history = History.from_string(history);
-    // TODO reset UI state
+    // TODO execute jump in ui state
     // this requires giving the game control over executing scenes
   }
 

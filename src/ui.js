@@ -2,10 +2,13 @@ import Typed from './typed/typed.js';
 import {History, HistoryItem} from './game.js';
 
 // Module UI
+export const EXECUTED_SCENE = Symbol('EXECUTED_SCENE');
+
 export const NO_ACTION = Symbol('NO_ACTION');
 export const UNREACHABLE = Symbol('UNREACHABLE');
 export const WAIT_FOR_CLICK = Symbol('WAIT_FOR_CLICK');
-export const EXECUTED_SCENE = Symbol('EXECUTED_SCENE');
+export const HIDE_TEXTBOX = Symbol('HIDE_TEXTBOX');
+export const SHOW_TEXTBOX = Symbol('SHOW_TEXTBOX');
 
 // TODO implement pause + save menu
 
@@ -13,6 +16,7 @@ var _parent = null;
 var _main_display = null;
 var _main_display_img = null;
 var _pause_menu = null;
+var _pause_button = null;
 var _textbox = null;
 var _state = {
   hijacker: null,
@@ -25,7 +29,7 @@ export function hide_textbox() {
   _textbox.style.display = "none";
 }
 
-export function showw_textbox() {
+export function show_textbox() {
   _textbox.style.display = "";
 }
 
@@ -36,7 +40,7 @@ export function toggle_textbox() {
     _textbox.style.display = "";
 }
 
-export function initialize(parent, scene_list) {
+export function initialize(parent, game, scene_list) {
   document.body.style.MozUserSelect="none";
   document.body.style.userSelect="none"
 
@@ -64,6 +68,19 @@ export function initialize(parent, scene_list) {
 
   _pause_menu = document.createElement("div");
   _pause_menu.classList.add("pause");
+  _pause_menu.onclick = function(e) {
+    if (e.target == _pause_menu) {
+      remove_pause();
+    }
+  }
+  game.setup_pause_menu(_pause_menu);
+
+  _pause_button = document.createElement("button");
+  _pause_button.innerHTML = "Pause";
+  _pause_button.onclick = summon_pause;
+  _pause_button.classList.add("pause-button");
+
+  _parent.appendChild(_pause_button);
 }
 
 export async function summon_pause() {
@@ -215,14 +232,29 @@ function reset_textbox() {
 
 // TODO decide if this should manage it's own spritestack
 // TODO decide if it should subclass Action
+const valid_scene_symbols = new Set([
+  NO_ACTION,
+  UNREACHABLE,
+  WAIT_FOR_CLICK,
+  HIDE_TEXTBOX,
+  SHOW_TEXTBOX,
+]);
+
 export class Scene {
   constructor(params) {
     this.name = params.name;
     this.cleanup = Boolean(params.cleanup);
     this.contents = params.contents;
+    this.hide_textbox = Boolean(params.hide_textbox);
   }
 
   async handle_text(text) {
+      reset_textbox();
+      await this.append_text(text);
+      await _wait_for_click();
+  }
+
+  async append_text(text) {
     var resolver = null;
     var typing_done = new Promise((r) => { resolver = r; });
     var p = document.createElement('p');
@@ -274,49 +306,86 @@ export class Scene {
     return res;
   }
 
-  async _scene(game, actions) {
-    for (var idx in actions) {
-      var action = actions[idx];
-      game.history.push(HistoryItem.scene_progress(this.name, idx));
-
-      if (action instanceof Delay) {
-        await action.wait();
-      } else if (action instanceof Action) {
-        var res = await this.handle_action(game, action, idx);
-        if (res == EXECUTED_SCENE)
-          return;
-      } else if (typeof(action) == 'string') {
-        reset_textbox();
-        await this.handle_text(action);
+  async handle_sequence(game, idx, sequence) {
+    reset_textbox();
+    while (!sequence.done) {
+      var val = await sequence.get();
+      if (typeof(val) == 'string') {
+        await this.append_text(val);
         await _wait_for_click();
-      } else if (action instanceof Sequence) {
-        reset_textbox();
-        while (!action.done) {
-          var val = await action.get();
-          if (typeof(val) == 'string') {
-            await this.handle_text(val);
-            await _wait_for_click();
-          } else if (val instanceof Action) {
-            var res = await this.handle_action(game, val, idx);
-            if (res == EXECUTED_SCENE)
-              return;
-          }
-        }
+      } else if (val instanceof Action) {
+        var res = await this.handle_action(game, val, idx);
+        if (res == EXECUTED_SCENE)
+          return EXECUTED_SCENE;
       } else {
-        throw new Error("Unexpected argument");
+        throw new Error("Only strings and Actions can be used in a sequence!");
       }
     }
   }
 
-  async run(game) {
+  async handle_symbol(symbol) {
+    if (!valid_scene_symbols.has(symbol)) {
+      throw new Error("Symbol '" + symbol.description + "' is not permitted in this context");
+    }
+
+    if (symbol == NO_ACTION)
+      return
+    else if (symbol == UNREACHABLE)
+      throw new Error("Reached game point tagged as UNREACHABLE");
+    else if (symbol == WAIT_FOR_CLICK)
+      return await _wait_for_click();
+    else if (symbol == HIDE_TEXTBOX)
+      hide_textbox();
+    else if (symbol == SHOW_TEXTBOX)
+      show_textbox();
+  }
+
+  async handle_all(game, action, idx) {
+    if (typeof(action) == 'symbol') {
+      return this.handle_symbol(action);
+    } else if (action instanceof Delay) {
+      return await action.wait();
+    } else if (action instanceof ExecAction) {
+      return this.handle_all(game, action.get_action(game), idx);
+    } else if (action instanceof Action) {
+      return await this.handle_action(game, action, idx);
+    } else if (typeof(action) == 'string') {
+      return await this.handle_text(action);
+    } else if (action instanceof Sequence) {
+      return await this.handle_sequence(game, idx, action);
+    } else {
+      throw new Error("Unexpected argument");
+    }
+  }
+
+  async _scene(game, actions, idx) {
+    idx = Number(idx) || 0;
+    for (; idx < actions.length; idx++) {
+      var action = actions[idx];
+      game.history.push(HistoryItem.scene_progress(this.name, idx));
+
+      var res = await this.handle_all(game, action);
+      if (res == EXECUTED_SCENE)
+        break;
+    }
+  }
+
+  async run(game, idx) {
     game.save();
 
     if (this.cleanup) {
       await clearScene().run();
     }
+
+    if (this.hide_textbox) {
+      hide_textbox();
+    } else {
+      show_textbox();
+    }
+
     var contents = await this.contents();
     // TODO validate that contents is array of Actions or strings
-    return this._scene(game, contents);
+    return this._scene(game, contents, idx);
   }
 };
 
@@ -332,11 +401,15 @@ export function setBackground(element, duration) {
   });
 }
 
-function exec(callback) { return new Action(callback); };
+export class ExecAction {
+  constructor(callback) {
+    this.callback = callback;
+  }
 
-// These functions return an action that can be executed by a scene
-function runGame() {};
-function runGameUntil() {};
+  get_action() {
+    return this.callback(game);
+  }
+}
 
 export function jump(next) {
   // A "Choice" with no branches
@@ -498,6 +571,8 @@ export class Draw {
    *  noCancel - when true, clicking will not cancel the animation
    */
   static animate(element, animation_name, params) {
+    params = params || {};
+
     function callback() {
           return Draw.do_animation(element, animation_name, params);
     }

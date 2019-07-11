@@ -18,7 +18,6 @@ export class Character {
     this.name = name;
     this.color = color;
 
-    this.abilities = new Abilities();
     this.backpack = new items.Backpack();
 
     this.renderer = null;
@@ -58,10 +57,22 @@ export class Character {
   get_image(key) {
     return this.assets.images.get(key);
   }
+
+  get sprite() {
+    if (this.assets.images.has('sprite')) {
+      return this.assets.images.get('sprite');
+    } else {
+      var entries = this.assets.images.entries();
+      var entry = entries.next();
+      if (entry.done == true)
+        return null;
+      return entry.value[1];
+    }
+  }
 }
 
 // The main character
-export class Player extends CombatCharacter {
+export class Player extends Character {
   constructor(name, color) {
     super(name, color);
     this.party = new Party();
@@ -71,6 +82,3 @@ export class Player extends CombatCharacter {
 
 // A collection of Characters that are in the Player's part
 export class Party extends Array {}
-
-// Abilities a character can have.
-export class Abilities extends Map {}
