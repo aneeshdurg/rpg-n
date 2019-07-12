@@ -189,6 +189,12 @@ export class Character extends Characters.Character {
   }
 }
 
+export class InteractiveCharacter extends Character {
+  action_selector(enemy) {
+    return new UIActionSelector(this, enemy, ui.get_textbox());
+  }
+}
+
 // This class defines the interface for choosing actions
 // This will allow for both an interactive character as well as an AI driven
 // character
@@ -210,6 +216,102 @@ export class ActionSelector {
 
     var move_idx = Math.floor(Math.random() * this.hero.moves.length);
     return this.hero.moves[move_idx].use_move();
+  }
+}
+
+export class UIActionSelector extends ActionSelector {
+  constructor(hero, enemy, parent) {
+    super(hero, enemy);
+
+    this.parent = parent;
+
+    this.selected_action = null;
+
+    this.actions = document.createElement("div");
+
+    this.punch = document.createElement("button");
+    this.punch.innerText = "punch";
+    this.actions.appendChild(this.punch);
+
+    this.run = document.createElement("button");
+    this.run.innerText = "run";
+    this.actions.appendChild(this.run);
+
+    this.items = document.createElement("button");
+    this.items.innerText = "items";
+    this.actions.appendChild(this.items);
+
+  }
+
+  gen_items_menu(resolver) {
+    var that = this;
+    return function() {
+      that.table = document.createElement("table");
+      that.table.id = "itemsTable";
+
+      var potions_row = document.createElement("tr");
+      for (var idx in that.hero.backpack.potions) {
+        var item = document.createElement("th");
+        item.innerHTML = "potion";
+        item.addEventListener('click', (function() {
+          return function() {
+            resolver();
+            that.selected_action = that.hero.backpack.potions.remove(idx);
+          }
+        })());
+        potions_row.appendChild(item);
+      }
+
+      that.table.appendChild(potions_row);
+      that.actions.appendChild(that.table);
+    }
+  }
+
+  async _get_action() {
+    this.selected_action = null;
+    this.parent.innerHTML = "";
+    this.parent.appendChild(this.actions);
+
+    var resolver = null;
+    var action_done = new Promise((r) => { resolver = r; });
+
+    var that = this;
+    var click_handler = function(e) {
+      resolver();
+      that.selected_action = e.target.innerText;
+    };
+
+    this.punch.addEventListener('click', click_handler);
+    this.run.addEventListener('click', click_handler);
+    var item_handler = this.gen_items_menu(resolver);
+    this.items.addEventListener('click', item_handler);
+
+    await action_done;
+
+    if (this.table)
+      this.table.remove();
+
+    this.punch.removeEventListener('click', click_handler);
+    this.run.removeEventListener('click', click_handler);
+    this.items.removeEventListener('click', item_handler);
+
+    this.actions.remove();
+
+    return this.selected_action;
+  }
+
+  async get_action() {
+    var action = await this._get_action();
+    if (action instanceof Items.ItemDescriptor) {
+      var item = action;
+      var result = item.use();
+      return result;
+    } else if (action == "run") {
+      return new Combat.Run(); // special run move that needs to be processed differently
+    } else {
+      var result = this.hero.moves[0].use_move();// TODO allow using more than one move!
+      return result;
+    }
   }
 }
 
@@ -254,8 +356,8 @@ export class Run extends MoveResult {
  *
  * returns Action?
  */
-class RunGame extends ui.Action {
-  constructor(game, params, textbox) {
+export class RunGame extends ui.Action {
+  constructor(game, params) {
     super(() => {});
 
     this.game = game;
@@ -263,14 +365,18 @@ class RunGame extends ui.Action {
     this.hero = params.hero; // TODO check that this exists
     this.enemy = params.enemy;
 
-    this.textbox = textbox;
+    this.textbox = ui.get_textbox();
+    this.stats = document.createElement("pre");
+    document.body.appendChild(this.stats);
   }
 
   static sanitize_params(params) {
     params.allow_run = params.allow_run || false;
     if (params.allow_run) {
       // TODO allow 0.25 to be configured
-      params.allow_run.run_chance = params.allow_run.run_chance || 0.25;
+      params.allow_run = {
+        run_chance: params.allow_run.run_chance || 0.25,
+      };
     }
 
     params.until = params.until || ((h, e) => true);
@@ -280,47 +386,65 @@ class RunGame extends ui.Action {
     params.on_win = params.on_win; // TODO make win/lose handlers
     params.on_lose = params.on_lose; // TODO make win/lose handlersS
 
+    return params;
   }
 
-  async run_turn(player1, player2) {
-    player1.run_status_effects(display_status_effect);
+  describe_effect(effect) {
+    return effect.constructor.name + "(" + effect.level + ")";
+  }
+
+  display_status_effect(effect, result) {
+    if (result) {
+      this.textbox.innerText += result.description + "\n";
+    } else {
+      this.textbox.innerText += "Effect " + this.describe_effect(effect) + " ended.\n";
+    }
+  }
+
+  async run_turn(player1, player1_actions, player2) {
+    await player1.run_status_effects(this.display_status_effect.bind(this));
 
     var result = await player1_actions.get_action();
     if (result instanceof Run) {
-      textbox.innerText += "Tried to run away...\n";
+      this.textbox.innerText += "Tried to run away...\n";
     await ui.delay(500).wait();
       if(this.params.allow_run && Math.random() < this.params.allow_run.run_chance) {
-        textboxbox.innerText += "Got away safely!\n";
-        ran = true;
+        this.textbox.innerText += "Got away safely!\n";
+        this.ran = true;
         return;
       } else {
-        textbox.innerText += "but could'nt!\n";
+        this.textbox.innerText += "but couldn't!\n";
       }
     } else {
       player1.damage(result.dmg_to_self);
       player2.damage(result.dmg_to_enemy);
-      textbox.innerText += result.description + "\n";
+      this.textbox.innerText += result.description + "\n";
     }
   }
 
   async run() {
-    textbox.innerText = "Encountered a ferocious dragon!\n";
+    this.textbox.innerText = "Encountered a ferocious dragon!\n"; // TODO ???
+    await ui.delay(1000).wait();
 
     var hero_actions = this.hero.action_selector(this.enemy);
     var enemy_actions = this.enemy.action_selector(this.hero);
 
-    var ran = false;
+    this.ran = false;
     var until_reached = false;
     var is_hero_turn = true;
 
 
-    while(this.enemy.hp && this.hero.hp && (!ran)) {
+    while(this.enemy.hp && this.hero.hp && (!this.ran)) {
       // TODO display stats
+      this.stats.innerText = "hero hp: " + this.hero.hp + " level: " + this.hero.level + "\n";
+      this.stats.innerText += "hero status effects: " + this.hero.status_effects.map(this.describe_effect) + "\n";
+      this.stats.innerText += "enemy hp: " + this.enemy.hp + " level: " + this.enemy.level + "\n";
+      this.stats.innerText += "enemy status effects: " + this.enemy.status_effects.map(this.describe_effect) + "\n";
 
       if (is_hero_turn) {
-        await this.run_turn(this.hero, this.enemy);
+        await this.run_turn(this.hero, hero_actions, this.enemy);
       } else {
-        await this.run_turn(this.hero, this.enemy);
+        await this.run_turn(this.enemy, enemy_actions, this.hero);
       }
 
       await ui.delay(500).wait();
@@ -332,22 +456,23 @@ class RunGame extends ui.Action {
     }
 
     if (until_reached) {
-      if (!this.params.on_until_reached(this.hero, this.enemy))
+      if (!this.params.on_until_reached(this.game, this.hero, this.enemy))
         return;
     }
 
-    if (!ran) {
+    if (!this.ran) {
       if (this.enemy.hp) {
         this.params.on_lose(this.game, this.hero, this.enemy);
       } else {
         this.params.on_win(this.game, this.hero, this.enemy);
       }
     } else {
-      this.params.on_run(this.hero, this.enemy);
+      this.params.on_run(this.game, this.hero, this.enemy);
     }
   }
 }
 
+// TODO finish this!!!
 // params:
 //  allowCancel
 //  filter

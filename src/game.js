@@ -6,9 +6,10 @@ export class Game {
     if (!(player instanceof characters.Player))
       throw new Error("player is not an instance of Player()");
 
-    this.player = player;
+    this.player = player; // TODO add this to the save
     this.default_save_key = "";
     this.history = new History();
+    this.menu_selections = []; // TODO add this to the save
   }
 
   static get_history_key_name(key) {

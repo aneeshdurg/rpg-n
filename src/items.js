@@ -69,3 +69,7 @@ export class Backpack {
     this.misc = new Inventory();
   }
 }
+
+export class Wallet {
+  // TODO desscribe money
+}

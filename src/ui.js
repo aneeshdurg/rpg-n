@@ -274,7 +274,9 @@ export class Scene {
     else
       res = await action.run();
 
-    if (action instanceof Choice || action instanceof Jump) {
+    if (action instanceof Menu) {
+      game.menu_selections.push(res);
+    } else if (action instanceof Choice || action instanceof Jump) {
       var scene_name = null;
       if (res == null) {
         return null;
@@ -380,7 +382,7 @@ export class Scene {
       show_textbox();
     }
 
-    var contents = await this.contents();
+    var contents = await this.contents(game);
     // TODO validate that contents is array of Actions or strings
     return this._scene(game, contents, idx);
   }
@@ -470,6 +472,11 @@ export function sequence() {
   return new Sequence(arguments);
 }
 
+export function menu() {
+  var options = arguments;
+  return new Menu(options);
+}
+
 export function choice() {
   var choices = arguments;
   return new Choice(choices);
@@ -512,6 +519,39 @@ export class Jump extends Action {
 export class Menu extends Action {
   // TODO block until user makes a selection and then return that selection back
   // to the game?
+  constructor(options) {
+    super(async function() {
+      var resolver = null;
+      var option_chosen = new Promise((r) => { resolver = r; });
+      var chosen_option = null;
+      _textbox.innerHTML = "";
+      for (var option of options) {
+        // option[0] == choice text
+        // option[1] == optional style for button
+        // TODO use mousetrap for keyboard support
+        var b = document.createElement('button');
+        b.className = "menuButton";
+        if (option.length >= 2) {
+          Draw.set_style(b, option[1]);
+        }
+
+        b.innerHTML = option[0];
+        function _gen_callback(option_text) {
+          return function () {
+            resolver();
+            chosen_option = option_text;
+          };
+        }
+        b.onclick = _gen_callback(option[0]);
+
+        _textbox.appendChild(b);
+        _textbox.appendChild(document.createElement('br'));
+      }
+
+      await option_chosen;
+      return chosen_option;
+    });
+  }
 }
 
 // No different from a normal action but is just a tag that this action prefers not to be waited on
@@ -564,6 +604,13 @@ class Choice extends Action {
 
       return new ChoiceResult(chosen_action, chosen_idx);
     });
+  }
+}
+
+export class SpriteThunk extends Action {
+  constructor(img, callback) {
+    super(callback);
+    this.element = img;
   }
 }
 
@@ -679,8 +726,9 @@ export class Draw {
   }
 }
 
-export class Delay instance of Action {
+export class Delay extends Action {
   constructor(delay) {
+    super(() => {});
     if (typeof(delay) != 'number') {
       throw new Error("Expected number!");
     }

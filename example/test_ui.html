@@ -50,7 +50,7 @@ var splashscreen = new Scene({
       ui.jump('intro'),
     ]
   },
-});
+});l
 
 var intro = new Scene({
   name: 'intro',
@@ -84,6 +84,17 @@ var intro = new Scene({
         return s("It landed on tails. I guess you have to die now.");
       }),
       ui.delay(500),
+      s("Want to buy something?"),
+      ui.menu(
+        ["Booze"],
+        ["Old GBA games"],
+      ),
+      ui.exec((game) => {
+        return ui.sequence(
+          s("Sorry, I can't sell you " + game.menu_selections.slice(-1)[0] + "."),
+          s("I lost my permit to sell things..."),
+        );
+      });
       ui.jump('credits')
     ];
   },
