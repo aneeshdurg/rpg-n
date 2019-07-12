@@ -18,8 +18,6 @@ export class Character {
     this.name = name;
     this.color = color;
 
-    this.backpack = new items.Backpack();
-
     this.renderer = null;
     this.construct_dialogue();
 

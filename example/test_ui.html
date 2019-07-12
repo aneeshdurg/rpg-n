@@ -73,17 +73,17 @@ var intro = new Scene({
       await ui.Draw.draw(assets.images.get('coin'), Center, {height: "10%"}),
       s("This is a coin, let's toss it and see where it lands!"),
       ui.Draw.animate(assets.images.get('coin'), 'flipInX'),
-      new ui.ExecAction((game) => {
+      ui.exec((game) => {
         if (Math.random() < 0.5) {
-          return new ui.Sequence(
+          return ui.sequence(
             s("It landed on heads!"),
-            new ui.Delay(500),
+            ui.delay(500),
             s("You are a lucky person..."),
           );
         }
         return s("It landed on tails. I guess you have to die now.");
       }),
-      new ui.Delay(500),
+      ui.delay(500),
       ui.jump('credits')
     ];
   },
@@ -98,7 +98,7 @@ var doing_good = new Scene({
       ui.Draw.animate(Sonic.get_image('default'), 'bounce', {asynchronous: true, iterationCount: 'infinite', noCancel: true}),
       s("Thanks for asking!"),
       ui.clearScene(1000), // TODO make clearScene apply fadeOut to everything on the display
-      new ui.Delay(500),
+      ui.delay(500),
       ui.jump('credits'),
     ];
   },
@@ -111,12 +111,12 @@ var credits = new Scene({
     return [
       // TODO create scrolling credits.
       await ui.Draw.draw(Sonic.get_image('default'), Center, {"height": "100%"}, 'flipInY', {'duration': '500ms'}),
-      new ui.Sequence(
+      ui.sequence(
         s("This is the end of the game!"),
         ui.playAudio(assets.audio.get('coin'), {asynchronous: true}),
         Text.center_align(s("Thanks for playing!")),
       ),
-      new ui.Delay(1000),
+      ui.delay(1000),
       ui.HIDE_TEXTBOX,
     ];
   },

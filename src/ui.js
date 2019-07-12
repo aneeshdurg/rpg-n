@@ -129,54 +129,6 @@ export async function transitionVolume(audio, targetVolume, params) {
   await volume_changed;
 }
 
-/**
- * params:
- *  loop
- *  noReset
- *  fadeIn
- *  volume
- *
- * TODO add params to control fadeIn step/time
- */
-export function playAudio(audio, params) {
-  params = params || {};
-  params.volume = params.volume || 1;
-
-  var resolver = null;
-  var audio_done = new Promise((r) => { resolver = r; });
-
-  function callback() {
-    if (params.loop) {
-      audio.loop = true;
-    } else {
-      audio.loop = false;
-    }
-
-    if (!params.noReset) {
-      audio.currentTime = 0;
-    }
-
-    audio.onended = function() { resolver(); };
-
-    if (params.fadeIn) {
-      audio.volume = 0;
-      transitionVolume(audio, params.volume);
-    } else {
-      audio.volume = params.volume;
-    }
-
-    audio.play();
-
-    return audio_done;
-  }
-
-  if (params.asynchronous) {
-    return new AsynchronousAction(callback);
-  } else {
-    return new Action(callback);
-  }
-}
-
 async function pause_all_audio() {
   var paused_audio = [];
   for (var a of document.querySelectorAll('audio')) {
@@ -188,6 +140,44 @@ async function pause_all_audio() {
   }
   return paused_audio;
 }
+
+function _register_click_event(e) {
+  if (_state.hijacker) {
+    _state.hijacker(e);
+    _state.hijacker = null;
+  } else if (_state.waiting_for_clicks) {
+    _state.waiting_for_clicks();
+    _state.waiting_for_clicks = null;
+  } else {
+    // cancel animations
+    var animated = document.querySelectorAll('.animated');
+    for (var el of animated) {
+      if (!el.classList.contains('nocancel')) {
+        Draw.cancel_animations(el);
+      }
+    }
+  }
+}
+
+async function _wait_for_click() {
+  var p = new Promise((r) => {
+    _state.waiting_for_clicks = r;
+  });
+  await p;
+}
+
+export function dbg_get__main_display_img() {
+  return _main_display_img;
+}
+
+export function dbg_get__main_display() {
+  return _main_display;
+}
+
+export function get_textbox() {
+  return _textbox;
+}
+
 
 export function clearScene(duration) {
   return new Action(async function() {
@@ -284,23 +274,30 @@ export class Scene {
     else
       res = await action.run();
 
-    if (action instanceof Choice) {
+    if (action instanceof Choice || action instanceof Jump) {
+      var scene_name = null;
       if (res == null) {
         return null;
+      } else if (action instanceof Jump) {
+        scene_name = res;
       } else if (res instanceof ChoiceResult) {
-        // TODO consider refactoring this to append res to an array so that we
-        // function.
-        var next_scene = _scene_map.get(res.scene_name);
-        if (!next_scene) {
-          throw new Error("Could not find scene '" + res.scene_name + "'");
-        }
-
-        game.history.push(HistoryItem.choice(this.name, idx, res.id));
-        await next_scene.run(game);
-        return EXECUTED_SCENE;
+        scene_name = res.scene_name;
       } else {
-        throw new Error("Expected an instance of ui.ChoiceResult");
+        throw new Error("Expected an instance of ui.Jump or ui.ChoiceResult");
       }
+
+      // TODO consider refactoring this to append res to an array so that we
+      // function.
+      var next_scene = _scene_map.get(scene_name);
+      if (!next_scene) {
+        throw new Error("Could not find scene '" + scene_name + "'");
+      }
+
+      if (action instanceof Choice)
+        game.history.push(HistoryItem.choice(this.name, idx, res.id));
+
+      await next_scene.run(game);
+      return EXECUTED_SCENE;
     }
 
     return res;
@@ -411,89 +408,76 @@ export class ExecAction {
   }
 }
 
+/**
+ * params:
+ *  loop
+ *  noReset
+ *  fadeIn
+ *  volume
+ *
+ * TODO add params to control fadeIn step/time
+ */
+export function playAudio(audio, params) {
+  params = params || {};
+  params.volume = params.volume || 1;
+
+  var resolver = null;
+  var audio_done = new Promise((r) => { resolver = r; });
+
+  function callback() {
+    if (params.loop) {
+      audio.loop = true;
+    } else {
+      audio.loop = false;
+    }
+
+    if (!params.noReset) {
+      audio.currentTime = 0;
+    }
+
+    audio.onended = function() { resolver(); };
+
+    if (params.fadeIn) {
+      audio.volume = 0;
+      transitionVolume(audio, params.volume);
+    } else {
+      audio.volume = params.volume;
+    }
+
+    audio.play();
+
+    return audio_done;
+  }
+
+  if (params.asynchronous) {
+    return new AsynchronousAction(callback);
+  } else {
+    return new Action(callback);
+  }
+}
+
+// TODO implement pauseAudio
+
+export function exec (callback) {
+  return new ExecAction(callback);
+}
+
 export function jump(next) {
-  // A "Choice" with no branches
-  return new Choice(function() {
-    return new ChoiceResult(next, -1);
-  });
+  return new Jump(next);
 };
+
+export function sequence() {
+  return new Sequence(arguments);
+}
 
 export function choice() {
   var choices = arguments;
-  return new Choice(async function() {
-    var resolver = null;
-    var choice_chosen = new Promise((r) => { resolver = r; });
-    var chosen_action = null;
-    var chosen_idx = -1;
-    for (var idx in choices) {
-      var choice = choices[idx]
-      // choice[0] == choice text
-      // choice[1] == choice action or NO_ACTION
-      // choice[2] == optional style for button
-      // TODO use mousetrap for keyboard support
-      var b = document.createElement('button');
-      b.className = "choiceButton";
-      if (choice.length >= 3) {
-        Draw.set_style(b, choice[2]);
-      }
-
-      b.innerHTML = choice[0];
-      function _gen_callback(callback, idx) {
-        return function () {
-          resolver();
-          chosen_action = callback;
-          chosen_idx = idx;
-        };
-      }
-      b.onclick = _gen_callback(choice[1], idx);
-
-      _textbox.appendChild(b);
-      _textbox.appendChild(document.createElement('br'));
-    }
-
-    await choice_chosen;
-    if (chosen_action == NO_ACTION) {
-      return null;
-    }
-
-    return new ChoiceResult(chosen_action, chosen_idx);
-  });
+  return new Choice(choices);
 };
 
-// A stack of sprites that can be manipulated
-export class SpriteStack extends Array {
-  check_type_error(element) {
-    if (!(element instanceof SpriteThunk)) {
-      throw new Error("SpriteStack only accepts elements of type SpriteThunk");
-    }
-  }
-
-  push(element) {
-    this.check_type_error(element);
-    super.push(element);
-    return element;
-  }
-
-  unshift(element) {
-    this.check_type_error(element);
-    super.unshift(element);
-    return element;
-  }
-
-  get(index) {
-    if (index >= 0 && index < this.length) {
-      return this[index].element;
-    } else if (index < 0 && (-1 * index) <= this.length) {
-      return this[this.length + index].element;
-    }
-  }
-
-  destroy() {
-    while (this.length)
-      this.pop().element.remove();
-  }
+export function delay(val) {
+  return new Delay(val);
 }
-export var spriteStack = new SpriteStack();
 
 // A class representing an action that a scene should evaluate.
 export class Action {
@@ -516,31 +500,74 @@ export class Action {
   }
 }
 
-// No different from a normal action but is just a tag that this action prefers not to be waited on
-export class AsynchronousAction extends Action {}
-
-// TODO remove spriteThunk
-export class SpriteThunk extends Action {
-  constructor(img, callback) {
-    super(callback);
-    this.element = img;
+// Indicates a jump to another scene
+export class Jump extends Action {
+  constructor(name) {
+    super(() => name);
   }
 }
 
-class Choice extends Action {};
+
+
+export class Menu extends Action {
+  // TODO block until user makes a selection and then return that selection back
+  // to the game?
+}
+
+// No different from a normal action but is just a tag that this action prefers not to be waited on
+export class AsynchronousAction extends Action {}
+
 class ChoiceResult {
   constructor(scene_name, id) {
     this.scene_name = scene_name;
     this.id = id;
   }
-};
+}
 
+class Choice extends Action {
+  constructor(choices) {
+    super(async function() {
+      var resolver = null;
+      var choice_chosen = new Promise((r) => { resolver = r; });
+      var chosen_action = null;
+      var chosen_idx = -1;
+      for (var idx in choices) {
+        var choice = choices[idx]
+        // choice[0] == choice text
+        // choice[1] == choice action or NO_ACTION
+        // choice[2] == optional style for button
+        // TODO use mousetrap for keyboard support
+        var b = document.createElement('button');
+        b.className = "choiceButton";
+        if (choice.length >= 3) {
+          Draw.set_style(b, choice[2]);
+        }
 
-// This class should be a wrapper around animate.css and css.shake
+        b.innerHTML = choice[0];
+        function _gen_callback(callback, idx) {
+          return function () {
+            resolver();
+            chosen_action = callback;
+            chosen_idx = idx;
+          };
+        }
+        b.onclick = _gen_callback(choice[1], idx);
+
+        _textbox.appendChild(b);
+        _textbox.appendChild(document.createElement('br'));
+      }
+
+      await choice_chosen;
+      if (chosen_action == NO_ACTION) {
+        return null;
+      }
+
+      return new ChoiceResult(chosen_action, chosen_idx);
+    });
+  }
+}
 
 export class Draw {
-  constructor() {}
-
   static _get_duration_or_delay_string(duration) {
     var duration = duration || "";
     if (typeof(duration) != 'string') {
@@ -652,50 +679,17 @@ export class Draw {
   }
 }
 
-function _register_click_event(e) {
-  if (_state.hijacker) {
-    _state.hijacker(e);
-    _state.hijacker = null;
-  } else if (_state.waiting_for_clicks) {
-    _state.waiting_for_clicks();
-    _state.waiting_for_clicks = null;
-  } else {
-    // cancel animations
-    var animated = document.querySelectorAll('.animated');
-    for (var el of animated) {
-      if (!el.classList.contains('nocancel')) {
-        Draw.cancel_animations(el);
-      }
-    }
-  }
-}
-
-async function _wait_for_click() {
-  var p = new Promise((r) => {
-    _state.waiting_for_clicks = r;
-  });
-  await p;
-}
-
-export function dbg_get__main_display_img() {
-  return _main_display_img;
-}
-
-export function dbg_get__main_display() {
-  return _main_display;
-}
-
-export function dbg_get__textbox() {
-  return _textbox;
-}
-
-export class Delay {
+export class Delay instance of Action {
   constructor(delay) {
     if (typeof(delay) != 'number') {
       throw new Error("Expected number!");
     }
 
     this.delay = delay;
+  }
+
+  async run() {
+    await this.run();
   }
 
   async wait() {
@@ -711,12 +705,11 @@ export class Delay {
   }
 }
 
-// should allow a sequence of text with delays
 export class Sequence {
-  constructor() {
+  constructor(args) {
     // check arguments types
     this.values = [];
-    for (var argument of arguments)
+    for (var argument of args)
       this.values.push(argument);
 
     this.done = false;

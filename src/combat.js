@@ -1,6 +1,7 @@
 import * as ui from './ui.js';
 import * as Characters from './characters.js';
 import * as Text from './text.js';
+import * as Items from './items.js';
 
 /**
  * move_heirarchy = {
@@ -113,18 +114,23 @@ export class StatusEffect {
 
 // A character capable of fighting
 export class Character extends Characters.Character {
-  constructor(name, color, type) {
+  constructor(name, color, types) {
     super(name, color);
 
     this._level = 0;
     this._hp = 0;
     this.max_hp = 0;
-    this.type = type;
+    this.types = types;
     this.moves = [];
     this.status_effects = [];
 
+    this.backpack = new Items.Backpack();
+
     // TODO ?
-    this.action_selector = new ActionSelector();
+  }
+
+  action_selector(enemy) {
+    return new ActionSelector(this, enemy);
   }
 
   get hp() { return this._hp; }
@@ -157,16 +163,54 @@ export class Character extends Characters.Character {
       // TODO allow for status effect animation/sfx/etc
     }
   }
+
+  async run_status_effects(description_handler) {
+    description_handler = description_handler || ((e, r) => {});
+
+    var to_delete = [];
+    for (var idx in this.status_effects) {
+      var effect = this.status_effects[idx];
+      var result = effect.on_turn(this)
+      if (!result) {
+        await description_handler(effect, result);
+        to_delete.push(idx);
+      } else {
+        effect.origin.damage(result.dmg_to_self);
+        this.damage(result.dmg_to_enemy);
+        await description_handler(effect, result);
+      }
+    }
+
+    var counter = 0;
+    for (var idx of to_delete) {
+      this.status_effects.splice(idx + counter, 1);
+      counter++;
+    }
+  }
 }
 
 // This class defines the interface for choosing actions
 // This will allow for both an interactive character as well as an AI driven
 // character
-class ActionSelector {
-  begin_combat(hero, enemy) {
+export class ActionSelector {
+  constructor(hero, enemy) {
+    this.hero = hero;
+    this.enemy = enemy;
   }
 
-  get_action() {}
+  // returns MoveResult
+  async get_action() {
+    await ui.delay(500).wait();
+    if (this.hero.hp < (0.5 * this.hero.max_hp)) {
+      if (this.hero.backpack.potions.length) {
+        var potion_idx = Math.floor(Math.random() * this.hero.backpack.potions.length);
+        return this.hero.backpack.potions.remove(potion_idx).use();
+      }
+    }
+
+    var move_idx = Math.floor(Math.random() * this.hero.moves.length);
+    return this.hero.moves[move_idx].use_move();
+  }
 }
 
 class RunCombat extends ui.Action {}
@@ -192,16 +236,116 @@ class RunCombat extends ui.Action {}
 //      on_win();
 //    }
 //  }
+export class Run extends MoveResult {
+  constructor() {
+    super(new Damage(0), new Damage(0), "run");
+  }
+}
 
 /**
  * params:
+ *   allow_run:
+ *      run_chance:
  *   on_lose:
  *   on_win:
+ *   on_run:
  *   until:
+ *   on_until_reached;
  *
  * returns Action?
  */
-function RunGame(params) {
+class RunGame extends ui.Action {
+  constructor(game, params, textbox) {
+    super(() => {});
+
+    this.game = game;
+    this.params = RunGame.sanitize_params(params);
+    this.hero = params.hero; // TODO check that this exists
+    this.enemy = params.enemy;
+
+    this.textbox = textbox;
+  }
+
+  static sanitize_params(params) {
+    params.allow_run = params.allow_run || false;
+    if (params.allow_run) {
+      // TODO allow 0.25 to be configured
+      params.allow_run.run_chance = params.allow_run.run_chance || 0.25;
+    }
+
+    params.until = params.until || ((h, e) => true);
+    if (params.until)
+      params.on_until_reached = params.on_until_reached || ((h, e) => false);
+
+    params.on_win = params.on_win; // TODO make win/lose handlers
+    params.on_lose = params.on_lose; // TODO make win/lose handlersS
+
+  }
+
+  async run_turn(player1, player2) {
+    player1.run_status_effects(display_status_effect);
+
+    var result = await player1_actions.get_action();
+    if (result instanceof Run) {
+      textbox.innerText += "Tried to run away...\n";
+    await ui.delay(500).wait();
+      if(this.params.allow_run && Math.random() < this.params.allow_run.run_chance) {
+        textboxbox.innerText += "Got away safely!\n";
+        ran = true;
+        return;
+      } else {
+        textbox.innerText += "but could'nt!\n";
+      }
+    } else {
+      player1.damage(result.dmg_to_self);
+      player2.damage(result.dmg_to_enemy);
+      textbox.innerText += result.description + "\n";
+    }
+  }
+
+  async run() {
+    textbox.innerText = "Encountered a ferocious dragon!\n";
+
+    var hero_actions = this.hero.action_selector(this.enemy);
+    var enemy_actions = this.enemy.action_selector(this.hero);
+
+    var ran = false;
+    var until_reached = false;
+    var is_hero_turn = true;
+
+
+    while(this.enemy.hp && this.hero.hp && (!ran)) {
+      // TODO display stats
+
+      if (is_hero_turn) {
+        await this.run_turn(this.hero, this.enemy);
+      } else {
+        await this.run_turn(this.hero, this.enemy);
+      }
+
+      await ui.delay(500).wait();
+      is_hero_turn = !is_hero_turn;
+      if (!this.params.until()) {
+        until_reached = true;
+        break;
+      }
+    }
+
+    if (until_reached) {
+      if (!this.params.on_until_reached(this.hero, this.enemy))
+        return;
+    }
+
+    if (!ran) {
+      if (this.enemy.hp) {
+        this.params.on_lose(this.game, this.hero, this.enemy);
+      } else {
+        this.params.on_win(this.game, this.hero, this.enemy);
+      }
+    } else {
+      this.params.on_run(this.hero, this.enemy);
+    }
+  }
 }
 
 // params:
