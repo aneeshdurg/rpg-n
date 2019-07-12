@@ -7,6 +7,7 @@ export class Game {
       throw new Error("player is not an instance of Player()");
 
     this.player = player; // TODO add this to the save
+    this.flags = new Map(); // TODO add this to the save
     this.default_save_key = "";
     this.history = new History();
     this.menu_selections = []; // TODO add this to the save

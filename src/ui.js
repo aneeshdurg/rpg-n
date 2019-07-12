@@ -405,7 +405,7 @@ export class ExecAction {
     this.callback = callback;
   }
 
-  get_action() {
+  get_action(game) {
     return this.callback(game);
   }
 }
@@ -698,10 +698,13 @@ export class Draw {
     }
   }
 
+  // TODO animate from point a to point b
+  // ???
+
   /**
    * img_params, animation, animation_params are optional
    */
-  static async draw(element, position, img_params, animation, animation_params) {
+  static draw(element, position, img_params, animation, animation_params) {
     async function callback() {
       // remove element if it was previously somewhere else
       element.remove();

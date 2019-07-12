@@ -38,7 +38,12 @@ export class Character {
   }
 
   static from_obj(obj, loading_container) {
-    var character = new Character(obj.name, obj.color);
+    var args = [null];
+    for (var param of obj.constructor_args) {
+      args.push(param);
+    }
+
+    var character = new (Function.prototype.bind.apply(this, args));
 
     character.assets = new Assets();
     if (obj.assets) {

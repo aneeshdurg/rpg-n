@@ -2,6 +2,7 @@ import * as ui from './ui.js';
 import * as Characters from './characters.js';
 import * as Text from './text.js';
 import * as Items from './items.js';
+import * as Positions from './positions.js';
 
 /**
  * move_heirarchy = {
@@ -114,7 +115,7 @@ export class StatusEffect {
 
 // A character capable of fighting
 export class Character extends Characters.Character {
-  constructor(name, color, types) {
+  constructor(name, color, types, sprites) {
     super(name, color);
 
     this._level = 0;
@@ -125,7 +126,6 @@ export class Character extends Characters.Character {
     this.status_effects = [];
 
     this.backpack = new Items.Backpack();
-
     // TODO ?
   }
 
@@ -149,11 +149,26 @@ export class Character extends Characters.Character {
     this.hp = this.max_hp;
   }
 
-  get opposing_sprite() {}
-  get protag_sprite() {}
-  get moves_list() {}
-  add_move(move) {}
-  forget_move(move) {}
+  get enemy_sprite() {
+    return this.assets.images.get('enemySprite');
+  }
+
+  get hero_sprite() {
+    return this.assets.images.get('heroSprite');
+  }
+
+  add_move(move) {
+    // TODO verify that move is an instanceof Move
+    this.moves.push(move);
+  }
+
+  forget_move(move) {
+    // TODO mark moves as forgettable or something?
+    var move_idx = this.moves.indexOf(move);
+    if (move_idx >= 0) {
+      this.moves.splice(move_idx, 1);
+    }
+  }
 
   damage(dmg) {
     // TODO check dmg type
@@ -190,7 +205,25 @@ export class Character extends Characters.Character {
 }
 
 export class InteractiveCharacter extends Character {
+  static from_non_interactive(character) {
+    console.log(character);
+    var interactive_character = new InteractiveCharacter(character.name, character.color, character.types);
+
+    interactive_character._level = character._level;
+    interactive_character._hp = character._hp;
+    interactive_character.max_hp = character.max_hp;
+    interactive_character.types = character.types;
+    interactive_character.moves = character.moves;
+    interactive_character.status_effects = character.status_effects;
+
+    interactive_character.backpack = character.backpack;
+    interactive_character.assets = character.assets;
+    interactive_character.loaded = character.loaded;
+    return interactive_character;
+  }
+
   action_selector(enemy) {
+    console.log("action selector for " + this.name + " generated!");
     return new UIActionSelector(this, enemy, ui.get_textbox());
   }
 }
@@ -362,7 +395,7 @@ export class RunGame extends ui.Action {
 
     this.game = game;
     this.params = RunGame.sanitize_params(params);
-    this.hero = params.hero; // TODO check that this exists
+    this.hero = params.hero; // TODO check that this exists allow it to be a CombatCharacter or a function
     this.enemy = params.enemy;
 
     this.textbox = ui.get_textbox();
@@ -423,6 +456,17 @@ export class RunGame extends ui.Action {
   }
 
   async run() {
+    if (this.hero instanceof Function) {
+      this.hero = this.hero();
+    }
+
+    if (this.enemy instanceof Function) {
+      this.enemy = this.enemy();
+    }
+
+    await ui.Draw.draw(this.hero.hero_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
+    await ui.Draw.draw(this.enemy.enemy_sprite, Positions.UpRight, {}, 'zoomIn').run();
+
     this.textbox.innerText = "Encountered a ferocious dragon!\n"; // TODO ???
     await ui.delay(1000).wait();
 
@@ -462,11 +506,15 @@ export class RunGame extends ui.Action {
 
     if (!this.ran) {
       if (this.enemy.hp) {
+        this.hero.hero_sprite.remove();
         this.params.on_lose(this.game, this.hero, this.enemy);
       } else {
+        this.enemy.enemy_sprite.remove();
         this.params.on_win(this.game, this.hero, this.enemy);
       }
     } else {
+      this.enemy.enemy_sprite.remove();
+      this.hero.hero_sprite.remove();
       this.params.on_run(this.game, this.hero, this.enemy);
     }
   }
