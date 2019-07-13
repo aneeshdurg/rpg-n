@@ -13,8 +13,7 @@ export var Types = new Combat.MoveTypes({
 
 export class ExampleMove extends Combat.Move {
   constructor(user, types) {
-    super(types, null);
-    this.user = user;
+    super(user, types, null);
     this.fight_level = this.types.has('fighting') ? 1 : 0;
     this.magic_level = this.types.has('magic') ? 1 : 0;
   }
@@ -151,7 +150,7 @@ export class Fireball extends ExampleMove {
 
 export class Knight extends Combat.InteractiveCharacter {
   constructor() {
-    super("knight", "green", ["fighting"]);
+    super("knight", "green", ["fighting"], Types);
     this.moves.push(new Punch(this));
     this.backpack.potions.push(new Items.PotionDescriptor(this, 0.5));
     this.backpack.potions.push(new Items.PotionDescriptor(this, 0.5));
@@ -159,10 +158,20 @@ export class Knight extends Combat.InteractiveCharacter {
     this.backpack.potions.push(new Items.PotionDescriptor(this, 0.5));
     this.level = 2;
   }
+
+  get exp() {
+    return this._exp;
+  }
+
+  set exp(amt) {
+    this._exp = amt;
+    console.log(amt, Math.log10(amt), Math.floor(Math.log10(amt)));
+    this.level = Math.floor(Math.log10(amt)) + 2;
+  }
 }
 
 export async function get_dragon(max_level) {
-  var dragon = new Combat.Character("dragon", "blue", "magic");
+  var dragon = new Combat.Character("dragon", "blue", ["magic"], Types);
   dragon.assets.loadImages({
       base_path: './assets/combat_demo/',
       heroSprite: 'dragon.png',
@@ -176,6 +185,7 @@ export async function get_dragon(max_level) {
   console.log("   ", level);
   dragon.level = Math.round(level) + 1;
   dragon.moves.push(new Fireball(dragon));
+  dragon.moves.push(new Punch(dragon));
 
   return dragon;
 }

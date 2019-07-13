@@ -42,18 +42,27 @@ var fight_scene = new ui.Scene({
     var member = null;
     return [
       "Ready to fight?",
+      "Choose your fighter!",
       ui.setBackground(assets.images.get('wasteland')),
       new ui.Action(async function() {
         member = await Combat.select_party_member(game, ui.get_textbox(), {});
+        console.log("chose", member);
       }),
       new Combat.RunGame(game, {
-        hero: function get_hero() { return member; },
+        hero: function get_hero() {
+          console.log(member.hp, member.status_effects);
+          return member;
+        },
         enemy: dragon,
         allow_run: {
           run_chance: 0.25,
         },
         on_win: (game, hero, enemy) => {
-          // TODO grant exp
+          // TODO level based events
+          //  e.g. learning moves, evolving, etc
+          //  some of those may require interactive actions!
+          console.log(hero, enemy, enemy.level);
+          hero.exp += enemy.level * 5;
           game.flags.set('victory', 1);
         },
         on_run: (game, hero, enemy) => {
@@ -66,12 +75,16 @@ var fight_scene = new ui.Scene({
       }),
       ui.exec((game) => {
         if (game.flags.get('victory') >= 0) {
-          var new_dragon = Combat.InteractiveCharacter.from_non_interactive(dragon)
-          new_dragon.hp = new_dragon.max_hp;
-          new_dragon.status_effects = [];
-          Me.party.push(new_dragon);
+          if (game.flags.get('victory') == 1) {
+            var new_dragon = Combat.InteractiveCharacter.from_non_interactive(dragon)
+            new_dragon.hp = new_dragon.max_hp;
+            new_dragon.status_effects = [];
+            Me.party.push(new_dragon);
+            // TODO fix the following text to accurately reflect if the dragon
+            // joined the party
+          }
           return ui.sequence(
-            "Dragon joined the party!",
+            new_dragon.name + " joined the party!",
             "Continue adventuring?",
             ui.choice(
               ["yeet", 'battle_knight'],
@@ -81,7 +94,11 @@ var fight_scene = new ui.Scene({
             "Good bye!",
           );
         }
-        return ui.sequence("Lol u lost");
+        return ui.sequence(
+          "Lol u lost",
+          ui.delay(1000),
+          ui.exec(() => { location.reload(); }),
+        );
       }),
     ]
   },

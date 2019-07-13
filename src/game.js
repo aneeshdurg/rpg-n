@@ -1,5 +1,6 @@
 import * as items from './items.js';
 import * as characters from './characters.js';
+import * as ui from './ui.js';
 
 export class Game {
   constructor(player) {
@@ -22,6 +23,11 @@ export class Game {
 
     this._container = document.createElement("div");
     this._container.className = "pause-element";
+    this._container.onclick = function(e) {
+      if (e.target == that._container) {
+        ui.remove_pause();
+      }
+    }
 
     this._save_input = document.createElement("input");
     this._save_input.placeholder = "Enter save key (default: '')";

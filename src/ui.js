@@ -77,13 +77,13 @@ export function initialize(parent, game, scene_list) {
 
   _pause_button = document.createElement("button");
   _pause_button.innerHTML = "Pause";
-  _pause_button.onclick = summon_pause;
+  _pause_button.onclick = function() { summon_pause(game); };
   _pause_button.classList.add("pause-button");
 
   _parent.appendChild(_pause_button);
 }
 
-export async function summon_pause() {
+export async function summon_pause(game) {
   _parent.appendChild(_pause_menu);
   _pause_menu.paused_music = await pause_all_audio();
   game.pause_handler(_pause_menu);
@@ -146,6 +146,7 @@ function _register_click_event(e) {
     _state.hijacker(e);
     _state.hijacker = null;
   } else if (_state.waiting_for_clicks) {
+    console.log("got click");
     _state.waiting_for_clicks();
     _state.waiting_for_clicks = null;
   } else {
@@ -159,7 +160,7 @@ function _register_click_event(e) {
   }
 }
 
-async function _wait_for_click() {
+export async function wait_for_click() {
   var p = new Promise((r) => {
     _state.waiting_for_clicks = r;
   });
@@ -241,7 +242,7 @@ export class Scene {
   async handle_text(text) {
       reset_textbox();
       await this.append_text(text);
-      await _wait_for_click();
+      await wait_for_click();
   }
 
   async append_text(text) {
@@ -278,11 +279,15 @@ export class Scene {
       game.menu_selections.push(res);
     } else if (action instanceof Choice || action instanceof Jump) {
       var scene_name = null;
+
       if (res == null) {
         return null;
       } else if (action instanceof Jump) {
         scene_name = res;
-      } else if (res instanceof ChoiceResult) {
+      } else if (action instanceof Choice && res instanceof ChoiceResult) {
+        game.history.push(HistoryItem.choice(this.name, idx, res.id));
+        if (res.scene_name == NO_ACTION)
+          return null;
         scene_name = res.scene_name;
       } else {
         throw new Error("Expected an instance of ui.Jump or ui.ChoiceResult");
@@ -294,9 +299,6 @@ export class Scene {
       if (!next_scene) {
         throw new Error("Could not find scene '" + scene_name + "'");
       }
-
-      if (action instanceof Choice)
-        game.history.push(HistoryItem.choice(this.name, idx, res.id));
 
       await next_scene.run(game);
       return EXECUTED_SCENE;
@@ -311,7 +313,7 @@ export class Scene {
       var val = await sequence.get();
       if (typeof(val) == 'string') {
         await this.append_text(val);
-        await _wait_for_click();
+        await wait_for_click();
       } else if (val instanceof Action) {
         var res = await this.handle_action(game, val, idx);
         if (res == EXECUTED_SCENE)
@@ -332,7 +334,7 @@ export class Scene {
     else if (symbol == UNREACHABLE)
       throw new Error("Reached game point tagged as UNREACHABLE");
     else if (symbol == WAIT_FOR_CLICK)
-      return await _wait_for_click();
+      return await wait_for_click();
     else if (symbol == HIDE_TEXTBOX)
       hide_textbox();
     else if (symbol == SHOW_TEXTBOX)
@@ -353,6 +355,7 @@ export class Scene {
     } else if (action instanceof Sequence) {
       return await this.handle_sequence(game, idx, action);
     } else {
+      console.log(action);
       throw new Error("Unexpected argument");
     }
   }
@@ -598,10 +601,6 @@ class Choice extends Action {
       }
 
       await choice_chosen;
-      if (chosen_action == NO_ACTION) {
-        return null;
-      }
-
       return new ChoiceResult(chosen_action, chosen_idx);
     });
   }
@@ -740,7 +739,7 @@ export class Delay extends Action {
   }
 
   async run() {
-    await this.run();
+    await this.wait();
   }
 
   async wait() {

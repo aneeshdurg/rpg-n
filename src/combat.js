@@ -49,7 +49,7 @@ export class MoveTypes {
     if (!this[typeA] || !this[typeB])
       throw new Error('Invalid arguments!');
 
-    return typeA.advantage.get(typeB);
+    return this[typeA].advantage.get(typeB);
   }
 
 
@@ -57,7 +57,7 @@ export class MoveTypes {
     if (!this[typeA] || !this[typeB])
       throw new Error('Invalid arguments!');
 
-    return typeA.disadvantage.get(typeB);
+    return this[typeA].disadvantage.get(typeB);
   }
 }
 
@@ -84,19 +84,13 @@ export class Move {
     this.sfx = sfx;
   }
 
-  // TODO Maybe this should be a part of some subclass's logic?
-  //is_battle_move() {
-  //  return true;
-  //}
-
-  //can_use_outside_battle() {
-  //  return false;
-  //}
-
-  use_move(victim) {
-    //returns MoveResult
-    // don't modify victim!!!
+  get name() {
+    return this.constructor.name;
   }
+
+  //returns MoveResult
+  // don't modify victim!!!
+  use_move(victim) { }
 }
 
 export class StatusEffect {
@@ -115,18 +109,19 @@ export class StatusEffect {
 
 // A character capable of fighting
 export class Character extends Characters.Character {
-  constructor(name, color, types, sprites) {
+  constructor(name, color, types, type_info) {
     super(name, color);
 
     this._level = 0;
     this._hp = 0;
+    this._exp = 0;
     this.max_hp = 0;
-    this.types = types;
+    this.types = new Set(types);
+    this.type_info = type_info;
     this.moves = [];
     this.status_effects = [];
 
     this.backpack = new Items.Backpack();
-    // TODO ?
   }
 
   action_selector(enemy) {
@@ -137,6 +132,16 @@ export class Character extends Characters.Character {
 
   set hp(x) {
     this._hp = Math.min(Math.max(x, 0), this.max_hp);
+  }
+
+  get exp() {
+    return this._exp;
+  }
+
+  set exp(amt) {
+    // to get to level `n` you need 10^(n-1) exp pts
+    this._exp = amt;
+    this.level = Math.floor(Math.log10(amt)) + 1;
   }
 
   get level() {
@@ -172,11 +177,22 @@ export class Character extends Characters.Character {
 
   damage(dmg) {
     // TODO check dmg type
-    this.hp -= dmg.dp;
+    var modifier = 0;
+    for (var type of this.types) {
+      for (var dmg_type of dmg.types) {
+        modifier -= this.type_info.advantage(type, dmg_type) || 0;
+        modifier += this.type_info.disadvantage(type, dmg_type) || 0;
+      }
+    }
+    modifier = Math.pow(2, modifier);
+    console.log("Damage", dmg, "modified by", modifier);
+
+    this.hp -= dmg.dp * modifier;
     if (dmg.statuseffect) {
       this.status_effects.push(dmg.statuseffect);
       // TODO allow for status effect animation/sfx/etc
     }
+    // TODO allow displaying tings like "attack was super effective!"
   }
 
   async run_status_effects(description_handler) {
@@ -206,13 +222,11 @@ export class Character extends Characters.Character {
 
 export class InteractiveCharacter extends Character {
   static from_non_interactive(character) {
-    console.log(character);
-    var interactive_character = new InteractiveCharacter(character.name, character.color, character.types);
+    var interactive_character = new InteractiveCharacter(character.name, character.color, character.types, character.type_info);
 
     interactive_character._level = character._level;
     interactive_character._hp = character._hp;
     interactive_character.max_hp = character.max_hp;
-    interactive_character.types = character.types;
     interactive_character.moves = character.moves;
     interactive_character.status_effects = character.status_effects;
 
@@ -223,7 +237,6 @@ export class InteractiveCharacter extends Character {
   }
 
   action_selector(enemy) {
-    console.log("action selector for " + this.name + " generated!");
     return new UIActionSelector(this, enemy, ui.get_textbox());
   }
 }
@@ -262,9 +275,15 @@ export class UIActionSelector extends ActionSelector {
 
     this.actions = document.createElement("div");
 
-    this.punch = document.createElement("button");
-    this.punch.innerText = "punch";
-    this.actions.appendChild(this.punch);
+    this.move_buttons = [];
+
+    for (var move of hero.moves) {
+      var move_btn = document.createElement("button");
+      move_btn.innerText = move.name;
+      move_btn.move = move;
+      this.move_buttons.push(move_btn);
+      this.actions.appendChild(move_btn);
+    }
 
     this.run = document.createElement("button");
     this.run.innerText = "run";
@@ -311,10 +330,13 @@ export class UIActionSelector extends ActionSelector {
     var that = this;
     var click_handler = function(e) {
       resolver();
-      that.selected_action = e.target.innerText;
+      if (e.target.move)
+        that.selected_action = e.target.move;
+      else
+        that.selected_action = e.target.innerText;
     };
 
-    this.punch.addEventListener('click', click_handler);
+    this.move_buttons.map((e) => { e.addEventListener('click', click_handler); });
     this.run.addEventListener('click', click_handler);
     var item_handler = this.gen_items_menu(resolver);
     this.items.addEventListener('click', item_handler);
@@ -324,7 +346,7 @@ export class UIActionSelector extends ActionSelector {
     if (this.table)
       this.table.remove();
 
-    this.punch.removeEventListener('click', click_handler);
+    this.move_buttons.map((e) => { e.removeEventListener('click', click_handler); });
     this.run.removeEventListener('click', click_handler);
     this.items.removeEventListener('click', item_handler);
 
@@ -341,8 +363,8 @@ export class UIActionSelector extends ActionSelector {
       return result;
     } else if (action == "run") {
       return new Combat.Run(); // special run move that needs to be processed differently
-    } else {
-      var result = this.hero.moves[0].use_move();// TODO allow using more than one move!
+    } else if (action instanceof Move) {
+      var result = action.use_move();
       return result;
     }
   }
@@ -399,8 +421,12 @@ export class RunGame extends ui.Action {
     this.enemy = params.enemy;
 
     this.textbox = ui.get_textbox();
-    this.stats = document.createElement("pre");
-    document.body.appendChild(this.stats);
+
+    this.stats = document.getElementsByTagName("pre")[0];
+    if (!this.stats) {
+      this.stats = document.createElement("pre");
+      document.body.appendChild(this.stats);
+    }
   }
 
   static sanitize_params(params) {
@@ -440,7 +466,7 @@ export class RunGame extends ui.Action {
     var result = await player1_actions.get_action();
     if (result instanceof Run) {
       this.textbox.innerText += "Tried to run away...\n";
-    await ui.delay(500).wait();
+      await ui.delay(500).wait();
       if(this.params.allow_run && Math.random() < this.params.allow_run.run_chance) {
         this.textbox.innerText += "Got away safely!\n";
         this.ran = true;
@@ -453,6 +479,8 @@ export class RunGame extends ui.Action {
       player2.damage(result.dmg_to_enemy);
       this.textbox.innerText += result.description + "\n";
     }
+    await ui.delay(500).wait();
+    await ui.wait_for_click();
   }
 
   async run() {
@@ -465,10 +493,10 @@ export class RunGame extends ui.Action {
     }
 
     await ui.Draw.draw(this.hero.hero_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
-    await ui.Draw.draw(this.enemy.enemy_sprite, Positions.UpRight, {}, 'zoomIn').run();
+    await ui.Draw.draw(this.enemy.enemy_sprite, Positions.UpRight, {height: "512px"}, 'zoomIn').run();
 
     this.textbox.innerText = "Encountered a ferocious dragon!\n"; // TODO ???
-    await ui.delay(1000).wait();
+    await ui.wait_for_click();
 
     var hero_actions = this.hero.action_selector(this.enemy);
     var enemy_actions = this.enemy.action_selector(this.hero);
@@ -565,15 +593,17 @@ export async function select_party_member(game, parent, params) {
     var description = document.createElement("p");
     description.className = "party-description";
     description.appendChild(icon);
-    description.innerHTML += Text.with_color(member.color, member.name);
+    description.innerHTML += Text.with_color(member.color, member.name) + " ";
+    description.innerHTML += "lvl: " + member.level + " ";
+    description.innerHTML += "hp: " + member.hp + "/" + member.max_hp + " ";
 
     element.appendChild(description);
-    element.onclick = (function() {
-      return function() {
+    element.onclick = (function(member) {
+      return function(e) {
         resolver();
         selected_member = member;
       }
-    })();
+    })(member);
 
     list_entry.appendChild(element);
     list.appendChild(list_entry);
