@@ -8,6 +8,7 @@ import {Scene} from '/src/ui.js';
 
 import {game, Me, me, Sonic, s} from './setup.js';
 import {entry} from './scenes/intro.js';
+import {play_smash} from './scenes/play_smash.js';
 
 var splashscreen = new Scene({
     name: 'splashscreen',
@@ -27,6 +28,7 @@ window.game = game;
   ui.initialize(document.body, game, [
     splashscreen,
     entry,
+    play_smash,
   ]);
   splashscreen.run(game);
 })();

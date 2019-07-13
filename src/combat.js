@@ -261,7 +261,7 @@ export class ActionSelector {
     }
 
     var move_idx = Math.floor(Math.random() * this.hero.moves.length);
-    return this.hero.moves[move_idx].use_move();
+    return this.hero.moves[move_idx].use_move(this.enemy);
   }
 }
 
@@ -275,16 +275,6 @@ export class UIActionSelector extends ActionSelector {
 
     this.actions = document.createElement("div");
 
-    this.move_buttons = [];
-
-    for (var move of hero.moves) {
-      var move_btn = document.createElement("button");
-      move_btn.innerText = move.name;
-      move_btn.move = move;
-      this.move_buttons.push(move_btn);
-      this.actions.appendChild(move_btn);
-    }
-
     this.run = document.createElement("button");
     this.run.innerText = "run";
     this.actions.appendChild(this.run);
@@ -293,6 +283,18 @@ export class UIActionSelector extends ActionSelector {
     this.items.innerText = "items";
     this.actions.appendChild(this.items);
 
+  }
+
+  gen_move_buttons() {
+    this.move_buttons = [];
+
+    for (var move of this.hero.moves) {
+      var move_btn = document.createElement("button");
+      move_btn.innerText = move.name;
+      move_btn.move = move;
+      this.move_buttons.push(move_btn);
+      this.actions.appendChild(move_btn);
+    }
   }
 
   gen_items_menu(resolver) {
@@ -313,8 +315,21 @@ export class UIActionSelector extends ActionSelector {
         })());
         potions_row.appendChild(item);
       }
+      var misc_row = document.createElement("tr");
+      for (var idx in that.hero.backpack.misc) {
+        var item = document.createElement("th");
+        item.innerHTML = that.hero.backpack.misc[idx].name;
+        item.addEventListener('click', (function() {
+          return function() {
+            resolver();
+            that.selected_action = that.hero.backpack.misc.remove(idx);
+          }
+        })());
+        misc_row.appendChild(item);
+      }
 
       that.table.appendChild(potions_row);
+      that.table.appendChild(misc_row);
       that.actions.appendChild(that.table);
     }
   }
@@ -336,7 +351,9 @@ export class UIActionSelector extends ActionSelector {
         that.selected_action = e.target.innerText;
     };
 
+    this.gen_move_buttons();
     this.move_buttons.map((e) => { e.addEventListener('click', click_handler); });
+
     this.run.addEventListener('click', click_handler);
     var item_handler = this.gen_items_menu(resolver);
     this.items.addEventListener('click', item_handler);
@@ -346,7 +363,10 @@ export class UIActionSelector extends ActionSelector {
     if (this.table)
       this.table.remove();
 
-    this.move_buttons.map((e) => { e.removeEventListener('click', click_handler); });
+    // TODO refactor move_buttons stuff
+    this.move_buttons.map((e) => { e.removeEventListener('click', click_handler); e.remove(); });
+    this.move_buttons = [];
+
     this.run.removeEventListener('click', click_handler);
     this.items.removeEventListener('click', item_handler);
 
@@ -356,6 +376,7 @@ export class UIActionSelector extends ActionSelector {
   }
 
   async get_action() {
+    console.log("called");
     var action = await this._get_action();
     if (action instanceof Items.ItemDescriptor) {
       var item = action;
@@ -364,7 +385,7 @@ export class UIActionSelector extends ActionSelector {
     } else if (action == "run") {
       return new Combat.Run(); // special run move that needs to be processed differently
     } else if (action instanceof Move) {
-      var result = action.use_move();
+      var result = action.use_move(this.enemy);
       return result;
     }
   }
@@ -463,7 +484,10 @@ export class RunGame extends ui.Action {
   async run_turn(player1, player1_actions, player2) {
     await player1.run_status_effects(this.display_status_effect.bind(this));
 
-    var result = await player1_actions.get_action();
+    var result = null;
+    while (!result)
+      result = await player1_actions.get_action();
+
     if (result instanceof Run) {
       this.textbox.innerText += "Tried to run away...\n";
       await ui.delay(500).wait();

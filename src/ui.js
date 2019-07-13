@@ -9,6 +9,7 @@ export const UNREACHABLE = Symbol('UNREACHABLE');
 export const WAIT_FOR_CLICK = Symbol('WAIT_FOR_CLICK');
 export const HIDE_TEXTBOX = Symbol('HIDE_TEXTBOX');
 export const SHOW_TEXTBOX = Symbol('SHOW_TEXTBOX');
+export const CLEAR_TEXTBOX = Symbol('CLEAR_TEXTBOX');
 
 // TODO implement pause + save menu
 
@@ -229,6 +230,7 @@ const valid_scene_symbols = new Set([
   WAIT_FOR_CLICK,
   HIDE_TEXTBOX,
   SHOW_TEXTBOX,
+  CLEAR_TEXTBOX,
 ]);
 
 export class Scene {
@@ -313,13 +315,11 @@ export class Scene {
       var val = await sequence.get();
       if (typeof(val) == 'string') {
         await this.append_text(val);
-        await wait_for_click();
-      } else if (val instanceof Action) {
-        var res = await this.handle_action(game, val, idx);
+        await wait_for_click(); //  TODO text that doesn't need a click
+      } else {
+        var res = await this.handle_all(game, val, idx);
         if (res == EXECUTED_SCENE)
           return EXECUTED_SCENE;
-      } else {
-        throw new Error("Only strings and Actions can be used in a sequence!");
       }
     }
   }
@@ -339,6 +339,8 @@ export class Scene {
       hide_textbox();
     else if (symbol == SHOW_TEXTBOX)
       show_textbox();
+    else if (symbol == CLEAR_TEXTBOX)
+      _textbox.innerHTML = "";
   }
 
   async handle_all(game, action, idx) {
@@ -724,7 +726,7 @@ export class Draw {
   static async remove(element) {
     element.remove();
     element.style.display = "none";
-    document.appendChild(element);
+    document.body.appendChild(element);
   }
 }
 

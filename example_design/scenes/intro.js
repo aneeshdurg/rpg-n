@@ -6,6 +6,7 @@ import {Scene} from '/src/ui.js';
 import {HistoryItem} from '/src/game.js';
 
 import {game, Me, me, Sonic, s} from '../setup.js';
+import {SSBOrb} from '../ssb_game.js';
 
 export var entry = new Scene({
   name: 'intro',
@@ -34,11 +35,35 @@ export var entry = new Scene({
           game.flags.set('sonic_suspicious', 1);
           return ui.sequence(
             "I guess I have nothing better to do...",
-            // TODO clear textbox
-            s("Uh...sure, let's go then."));
+            ui.CLEAR_TEXTBOX,
+            s("Uh...sure, let's go then."),
+            ui.jump('play_smash'),
+          );
         } else {
           game.flags.set('sonic_friends', 1);
-          return ui.sequence("???");
+          return ui.sequence(
+            me("Sure, that sounds really fun!"),
+            ui.CLEAR_TEXTBOX,
+            s("Awesome!"),
+            ui.CLEAR_TEXTBOX,
+            ui.Draw.draw(assets.images.get('coin'), Positions.Center, {height: "50%"}, "zoomIn", {asynchronous: true}),
+            s("Take this!"),
+            new ui.AsynchronousAction(async function() {
+              var coin = assets.images.get('coin');
+              await ui.Draw.animate(coin, "zoomOut", {noCancel: true}).run();
+              ui.Draw.remove(coin);
+            }),
+            ui.exec((game) => {
+              var member = game.player.party[0];
+              member.backpack.misc.push(new SSBOrb(member));
+              return ui.NO_ACTION;
+            }),
+            s("It's a super smash bros. sticker I found."),
+            ui.CLEAR_TEXTBOX,
+            me("Thanks, this is really cool!"),
+            s("Don't mention it!"),
+            ui.jump('play_smash'),
+          );
         }
       }),
     ];

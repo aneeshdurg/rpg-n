@@ -3,14 +3,8 @@ import * as Combat from './combat.js';
 // todo describe things like equipment vs items differently
 // create mechanisms for items to emulate attacks and return move descriptors
 export class ItemDescriptor {
-  constructor(owner, params) {
-    params = params || {
-      can_be_used_in_battle: true,
-      can_be_used_in_overworld: false,
-    };
+  constructor(owner) {
     this.owner = owner;
-    this.can_be_used_in_battle = params.battle;
-    this.can_be_used_in_overworld = params.overworld;
   }
 
   get name() {
@@ -24,7 +18,7 @@ export class ItemDescriptor {
 export class WeaponDescriptor extends ItemDescriptor { }
 export class PotionDescriptor extends ItemDescriptor {
   constructor(owner, value, val_is_absolute) {
-    // assert that owner is Combat.Character
+    // TODO assert that owner is Combat.Character
     super(owner);
 
     this.value = value;

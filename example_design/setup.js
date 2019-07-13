@@ -4,9 +4,11 @@ import {Game} from '/src/game.js';
 import {Player} from '/src/characters.js';
 import {assets} from '/src/assets.js';
 
+import {SSBFighterInteractive, SSBFighter} from './ssb_game.js';
+
 assets.loadImages({
   base_path: './assets',
-  mario: 'backgrounds/mario_background.png',
+  apartment: 'backgrounds/mario_background.png',
   school: 'backgrounds/creepy_wasteland.jpg',
   coin: 'coin.png',
 });
@@ -17,7 +19,7 @@ assets.loadAudio({
   coin: '135936__bradwesson__collectcoin.wav',
 });
 
-export var Sonic = Combat.Character.from_obj({
+export var Sonic = SSBFighter.from_obj({
   constructor_args: ['Sonic', 'blue'],
   assets: {
     images: {
@@ -29,8 +31,23 @@ export var Sonic = Combat.Character.from_obj({
   },
 });
 export var s = Sonic.renderer;
+Sonic.level = 1;
 
 export var Me = new Player('Me', 'green');
 export var me = Me.renderer;
+
+export var Ness = SSBFighterInteractive.from_obj({
+  constructor_args: ['Ness', 'red'],
+  assets: {
+    images: {
+      base_path: './assets',
+      heroSprite: 'ness.png',
+      enemySprite: 'ness.png',
+    },
+  },
+});
+Ness.level = 1;
+Me.party.push(Ness);
+window.Ness = Ness;
 
 export var game = new Game(Me);
