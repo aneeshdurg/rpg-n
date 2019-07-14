@@ -1,9 +1,9 @@
 import * as ui from '../../src/ui.js';
 import * as Positions from '../../src/positions.js';
 
-import {assets} from '../src/assets.js';
-import {Scene} from '../src/ui.js';
-import {HistoryItem} from '/src/game.js';
+import {assets} from '../../src/assets.js';
+import {Scene} from '../../src/ui.js';
+import {HistoryItem} from '../../src/game.js';
 
 import {game, Me, me, Sonic, s} from '../setup.js';
 import {SSBOrb} from '../ssb_game.js';
