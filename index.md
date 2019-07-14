@@ -1,3 +1,8 @@
+# RPG-N
+## The (R)ole (P)laying (G)ame / visual (N)ovel engine
+
+RPG-N is a visual novel engine that has some RPG elements.
+
 Below are some demos of working stuff
 
 [Full featured demo (WIP)](./example_design/example.html)
