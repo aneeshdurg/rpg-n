@@ -8,14 +8,21 @@ export class Game {
       throw new Error("player is not an instance of Player()");
 
     this.player = player; // TODO add this to the save
-    this.flags = new Map(); // TODO add this to the save
+    this.flags = new Flags(); // TODO add this to the save
     this.default_save_key = "";
     this.history = new History();
     this.menu_selections = []; // TODO add this to the save
   }
 
-  static get_history_key_name(key) {
-    return "history" + (key ? "." + key : "");
+  static get_history_keys(key) {
+     var base = "history" + (key ? "." + key : "");
+    return {
+      base: base,
+      history: base + ":history",
+      player: base + ":player",
+      flags: base + ":flags",
+      menu_selections: base + ":menu_selections",
+    };
   }
 
   setup_pause_menu(parent) {
@@ -41,8 +48,11 @@ export class Game {
     this._load_button = document.createElement("button");
     this._load_button.innerHTML = "load";
     this._load_button.onclick = function() {
-      // TODO catch error and alert!
-      that.load(that._save_input.value);
+      try {
+        that.load(that._save_input.value);
+      } catch(e) {
+        alert("Invalid save data!");
+      }
     }
 
     this._container.appendChild(this._save_input);
@@ -57,10 +67,10 @@ export class Game {
   pause_handler(parent) { }
 
   load(key) {
-    key = Game.get_history_key_name(key);
-    var history = localStorage.getItem(key);
+    key = Game.get_history_keys(key);
+    var history = localStorage.getItem(key.base);
     if (!history) {
-      throw new Error("Expected to find history for key '" + key + "'");
+      throw new Error("Expected to find history for key '" + key.base + "'");
     }
 
     this.history = History.from_string(history);
@@ -70,9 +80,16 @@ export class Game {
 
   save(key) {
     key = key || this.default_save_key;
-    key = Game.get_history_key_name(key);
+    if (key.indexOf(":") >= 0) {
+      throw new Error("Cannot have ':' in key");
+    }
+    key = Game.get_history_keys(key);
     // generate save state and write to localstorage under key
-    localStorage.setItem(key, this.history.to_string());
+    localStorage.setItem(key.base, "true");
+    localStorage.setItem(key.history, this.history.to_string());
+    localStorage.setItem(key.player, this.player.to_string()); // TODO implement me!
+    localStorage.setItem(key.flags, this.flags.to_string());
+    localStorage.setItem(key.menu_selections, JSON.stringify(this.menu_selections));
   }
 
 }
@@ -123,7 +140,7 @@ export class HistoryItem {
     this.scene_name = scene_name;
     this.idx = idx;
     this.type = HistoryItem.types._invalid;
-    this.choice_id = -1; // TODO consider storing richer information for choice type (e.g. total choices, all choice strings)
+    this.choice_id = -1;
   }
 
   static get types() {
@@ -168,4 +185,34 @@ export class HistoryItem {
   }
 }
 
+class Flags extends Map {
+  set(key, value) {
+    if (typeof(value) != 'number') {
+      throw new Error("Flags must contain numbers!");
+    }
 
+    return super.set(key, value);
+  }
+
+  get(key, default_val) {
+    if (!this.has(key))
+      return default_val;
+    return super.get(key);
+  }
+
+  to_string() {
+    var temp = [];
+    var entries = this.entries();
+    while (true) {
+      var entry = entries.next();
+      if (entry.done)
+        break;
+      temp.push(entry.value);
+    }
+    return JSON.stringify(temp);
+  }
+
+  static from_string(string) {
+    return new Flags(JSON.parse(string));
+  }
+}

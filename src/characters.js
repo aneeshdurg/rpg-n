@@ -81,6 +81,13 @@ export class Player extends Character {
     this.party = new Party();
   }
 
+  to_string() {
+    // TODO create a "item table" on the backpack to allow reconstructing
+    // serialized items given their constructor name
+  }
+
+  static from_string() {
+  }
 }
 
 // A collection of Characters that are in the Player's part

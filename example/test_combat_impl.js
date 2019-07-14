@@ -1,5 +1,7 @@
-import * as Combat from '/src/combat.js';
-import * as Items from '/src/items.js';
+import * as Combat from '../src/combat.js';
+import * as Items from '../src/items.js';
+import * as ui from '../src/ui.js';
+import {assets} from '../src/assets.js';
 
 export var Types = new Combat.MoveTypes({
   'fighting': {
@@ -24,6 +26,29 @@ export class ExampleMove extends Combat.Move {
 
   mlevel_up() {
     this.magic_level++;
+  }
+
+  get_sprite_position(victim) {
+    var victim_style = window.getComputedStyle(victim.active_sprite);
+    function to_num(prop) {
+      return Number(prop.replace('px', ''));
+    }
+
+    var position = {
+      'position': 'absolute',
+      'margin': "",
+    };
+
+    position["bottom"] =
+      to_num(victim_style["bottom"]) + to_num(victim_style["marginBottom"]) + to_num(victim_style.height) / 2 - this.sprite.height / 2;
+    position["top"] =
+      to_num(victim_style["top"]) + to_num(victim_style["marginTop"]) + to_num(victim_style.height) / 2 - this.sprite.height / 2;
+    position["left"] =
+      to_num(victim_style["left"]) + to_num(victim_style["marginLeft"]) + to_num(victim_style.width) / 2 - this.sprite.width / 2;
+    position["right"] =
+      to_num(victim_style["right"]) + to_num(victim_style["marginRight"]) + to_num(victim_style.width) / 2 - this.sprite.width / 2;
+
+    return position;
   }
 
   use_move(victim) {
@@ -83,7 +108,10 @@ export class Punch extends ExampleMove {
     this.bleed_chance = 0.9;
   }
 
-  use_move() {
+  async use_move(victim) {
+    this.sprite = assets.images.get('fist');
+    this.sfx = assets.audio.get('punch');
+
     var damage = this.user.level * (this.fight_level * 15 + this.magic_level);
     var description = [];
     var statuseffect = null;
@@ -98,6 +126,19 @@ export class Punch extends ExampleMove {
       statuseffect = new Bleed(this.user, 2 * this.user.level * this.fight_level);
       description.push("Punch caused bleeding!");
     }
+
+    if (victim.active_sprite) {
+      var position = this.get_sprite_position(victim);
+
+      await ui.Draw.draw(this.sprite, position).run();
+      ui.playAudio(this.sfx, {asynchronous: true}).run();
+      await ui.delay(250).run();
+      await ui.Draw.animate(this.sprite, 'zoomOut').run();
+      await ui.Draw.remove(this.sprite);
+
+    } else {
+    }
+
     return new Combat.MoveResult(
       new Combat.Damage(this.types, 0),
       new Combat.Damage(this.types, damage, statuseffect),
@@ -115,7 +156,10 @@ export class Fireball extends ExampleMove {
     this.burn_chance = 0.5;
   }
 
-  use_move() {
+  async use_move(victim) {
+    this.sprite = assets.images.get('fire');
+    this.sfx = assets.audio.get('fireball');
+
     var damage = this.user.level * (this.magic_level * 20 + this.fight_level);
     var description = [];
     var statuseffect = null;
@@ -128,6 +172,18 @@ export class Fireball extends ExampleMove {
     if (Math.random() < this.burn_chance) {
       statuseffect = new Burn(this.user, this.user.level * this.magic_level);
       description.push("Fireball caused burning!");
+    }
+
+    if (victim.active_sprite) {
+      var position = this.get_sprite_position(victim);
+
+      await ui.Draw.draw(this.sprite, position).run();
+      ui.playAudio(this.sfx, {asynchronous: true}).run();
+      await ui.delay(250).run();
+      await ui.Draw.animate(this.sprite, 'zoomOut').run();
+      await ui.Draw.remove(this.sprite);
+
+    } else {
     }
 
     return new Combat.MoveResult(
@@ -165,7 +221,6 @@ export class Knight extends Combat.InteractiveCharacter {
 
   set exp(amt) {
     this._exp = amt;
-    console.log(amt, Math.log10(amt), Math.floor(Math.log10(amt)));
     this.level = Math.floor(Math.log10(amt)) + 2;
   }
 }
@@ -180,9 +235,7 @@ export async function get_dragon(max_level) {
   await dragon.loaded;
 
   var level = Math.random();
-  console.log("lvl", level);
   level *= (max_level - 1);
-  console.log("   ", level);
   dragon.level = Math.round(level) + 1;
   dragon.moves.push(new Fireball(dragon));
   dragon.moves.push(new Punch(dragon));

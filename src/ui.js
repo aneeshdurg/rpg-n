@@ -147,7 +147,6 @@ function _register_click_event(e) {
     _state.hijacker(e);
     _state.hijacker = null;
   } else if (_state.waiting_for_clicks) {
-    console.log("got click");
     _state.waiting_for_clicks();
     _state.waiting_for_clicks = null;
   } else {

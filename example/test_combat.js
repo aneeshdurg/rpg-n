@@ -1,9 +1,9 @@
-import * as Combat from '/src/combat.js';
-import * as ui from '/src/ui.js';
-import {Game} from '/src/game.js';
-import {Player} from '/src/characters.js';
+import * as Combat from '../src/combat.js';
+import * as ui from '../src/ui.js';
+import {Game} from '../src/game.js';
+import {Player} from '../src/characters.js';
 import {Knight, get_dragon} from './test_combat_impl.js';
-import {assets} from '/src/assets.js';
+import {assets} from '../src/assets.js';
 
 window.Combat = Combat;
 
@@ -19,19 +19,23 @@ var knight = Knight.from_obj({
   }
 });
 
-window.knight = knight;
-window.Me = Me;
-
 Me.party.push(knight);
 var me = Me.renderer;
 
 var game = new Game(Me);
 
 assets.loadImages({
-  base_path: './assets/backgrounds',
-  wasteland: 'creepy_wasteland.jpg',
+  base_path: './assets',
+  wasteland: 'backgrounds/creepy_wasteland.jpg',
+  fist: 'combat_demo/fist.png',
+  fire: 'combat_demo/fire.png',
 });
 
+assets.loadAudio({
+  base_path: './assets/audio',
+  fireball: '431174__highpixel__fireball-explosion.wav',
+  punch: '118513__thefsoundman__punch-02.wav',
+});
 var fight_scene = new ui.Scene({
   name: 'battle_knight',
   cleanup: true,
@@ -112,3 +116,8 @@ var fight_scene = new ui.Scene({
   ]);
   fight_scene.run(game);
 })();
+
+
+window.knight = knight;
+window.Me = Me;
+window.assets = assets;

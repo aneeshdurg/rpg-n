@@ -90,7 +90,7 @@ export class Move {
 
   //returns MoveResult
   // don't modify victim!!!
-  use_move(victim) { }
+  async use_move(victim) { }
 }
 
 export class StatusEffect {
@@ -185,7 +185,6 @@ export class Character extends Characters.Character {
       }
     }
     modifier = Math.pow(2, modifier);
-    console.log("Damage", dmg, "modified by", modifier);
 
     this.hp -= dmg.dp * modifier;
     if (dmg.statuseffect) {
@@ -261,7 +260,7 @@ export class ActionSelector {
     }
 
     var move_idx = Math.floor(Math.random() * this.hero.moves.length);
-    return this.hero.moves[move_idx].use_move(this.enemy);
+    return await this.hero.moves[move_idx].use_move(this.enemy);
   }
 }
 
@@ -385,7 +384,7 @@ export class UIActionSelector extends ActionSelector {
     } else if (action == "run") {
       return new Combat.Run(); // special run move that needs to be processed differently
     } else if (action instanceof Move) {
-      var result = action.use_move(this.enemy);
+      var result = await action.use_move(this.enemy);
       return result;
     }
   }
@@ -516,7 +515,10 @@ export class RunGame extends ui.Action {
       this.enemy = this.enemy();
     }
 
+    this.hero.active_sprite = this.hero.hero_sprite;
     await ui.Draw.draw(this.hero.hero_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
+
+    this.enemy.active_sprite = this.enemy.enemy_sprite;
     await ui.Draw.draw(this.enemy.enemy_sprite, Positions.UpRight, {height: "512px"}, 'zoomIn').run();
 
     this.textbox.innerText = "Encountered a ferocious dragon!\n"; // TODO ???
