@@ -1,4 +1,6 @@
-# RPG-N
+<link rel="icon" href="/favicon.ico" type="image/x-icon" />
+
+![RPG-N](logo.png)
 ## The (R)ole (P)laying (G)ame / visual (N)ovel engine
 
 RPG-N is a visual novel engine that has some RPG elements.
