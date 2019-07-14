@@ -1,8 +1,8 @@
-import * as Combat from '/src/combat.js';
-import * as ui from '/src/ui.js';
-import {Game} from '/src/game.js';
-import {Player} from '/src/characters.js';
-import {assets} from '/src/assets.js';
+import * as Combat from '../src/combat.js';
+import * as ui from '../src/ui.js';
+import {Game} from '../src/game.js';
+import {Player} from '../src/characters.js';
+import {assets} from '../src/assets.js';
 
 import {SSBFighterInteractive, SSBFighter} from './ssb_game.js';
 

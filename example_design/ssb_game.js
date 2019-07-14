@@ -1,5 +1,5 @@
-import * as Combat from '/src/combat.js';
-import * as Items from '/src/items.js';
+import * as Combat from '../src/combat.js';
+import * as Items from '../src/items.js';
 
 export var Types = new Combat.MoveTypes({
   'fighting': {},

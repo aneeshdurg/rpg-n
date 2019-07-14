@@ -1,4 +1,4 @@
-import {Scene} from '/src/ui.js';
+import {Scene} from '../src/ui.js';
 
 export function get_scene() {
   return new Scene({
