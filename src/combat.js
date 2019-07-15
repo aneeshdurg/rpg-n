@@ -482,6 +482,8 @@ export class RunGame extends ui.Action {
 
   async run_turn(player1, player1_actions, player2) {
     await player1.run_status_effects(this.display_status_effect.bind(this));
+    await this.update_hero_stats();
+    await this.update_enemy_stats();
 
     var result = null;
     while (!result)
@@ -500,10 +502,157 @@ export class RunGame extends ui.Action {
     } else {
       player1.damage(result.dmg_to_self);
       player2.damage(result.dmg_to_enemy);
+      this.update_hero_stats();
+      this.update_enemy_stats();
+
       this.textbox.innerText += result.description + "\n";
     }
     await ui.delay(500).wait();
     await ui.wait_for_click();
+  }
+
+  _draw_rect(ctx, color, x, y, width, height) {
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.rect(x, y, width, height);
+    ctx.fill();
+  }
+
+  _to_num(prop) {
+    console.log(prop);
+    return Number((prop + "").replace('px', ''));
+  }
+
+  async draw_stats(character, is_below) {
+    var style = window.getComputedStyle(character.active_sprite);
+
+    var hp_obj = {};
+    hp_obj.canvas = document.createElement('canvas');
+    character.active_sprite.parentElement.appendChild(hp_obj.canvas);
+
+    hp_obj.canvas.style.position = "absolute";
+    if (is_below) {
+      hp_obj.canvas.style.bottom = this._to_num(style.bottom) + this._to_num(style.marginBottom);
+    } else {
+      hp_obj.canvas.style.top = this._to_num(style.top) + this._to_num(style.marginTop);
+    }
+    hp_obj.canvas.style.left = this._to_num(style.left) + this._to_num(style.marginLeft);
+    hp_obj.canvas.width = this._to_num(style.width);
+    hp_obj.canvas.height = 20; // ?
+
+    hp_obj.ctx = hp_obj.canvas.getContext('2d');
+    hp_obj.width = hp_obj.canvas.width / 2;
+    hp_obj.height = hp_obj.canvas.height;
+
+    hp_obj.outer_x = (hp_obj.canvas.width / 2) - (hp_obj.width / 2);
+    hp_obj.outer_y = (hp_obj.canvas.height / 2) - (hp_obj.height / 2);
+
+    hp_obj.border = hp_obj.height * 0.1;
+
+    hp_obj.inner_x = hp_obj.outer_x + hp_obj.border;
+    hp_obj.inner_y = hp_obj.outer_y + hp_obj.border;
+
+    hp_obj.inner_width = hp_obj.width - 2 * hp_obj.border;
+    hp_obj.inner_height = hp_obj.canvas.height - 2 * hp_obj.border;
+
+    this._draw_rect(
+      hp_obj.ctx,
+      "black",
+      hp_obj.outer_x,
+      hp_obj.outer_y,
+      hp_obj.width,
+      hp_obj.height)
+
+    hp_obj._known_hp = 0;//character.hp;
+
+    var that = this;
+    hp_obj.draw_hp = async function() {
+      if (character.hp == hp_obj._known_hp)
+        return;
+
+      var resolver = null;
+      var drawing_done = new Promise((r) => { resolver = r; });
+
+      var total_time = 250; // time to animate in ms
+      var time_per_redraw = 10;
+      var hp_per_ms = Math.abs(hp_obj._known_hp - character.hp) / total_time;
+      var hp_per_step = hp_per_ms * time_per_redraw;
+
+      var counter = 0;
+      function redraw() {
+        if (hp_obj._known_hp > character.hp) {
+          hp_obj._known_hp = Math.max( hp_obj._known_hp - hp_per_step, character.hp);
+        } else if (hp_obj._known_hp < character.hp) {
+          hp_obj._known_hp = Math.min( hp_obj._known_hp + hp_per_step, character.hp);
+        }
+
+        that._draw_rect(
+          hp_obj.ctx,
+          "white",
+          hp_obj.inner_x,
+          hp_obj.inner_y,
+          hp_obj.inner_width,
+          hp_obj.inner_height);
+
+        // this has to be defined dynamically incase max_hp changes
+        var get_width = function(hp) {
+          return (hp / character.max_hp) * hp_obj.inner_width;
+        }
+
+        var color = "green";
+        if (hp_obj._known_hp < (character.max_hp / 4)) {
+          color = "red";
+        } else if (hp_obj._known_hp < (character.max_hp / 2)) {
+          color = "orange";
+        }
+
+        that._draw_rect(
+          hp_obj.ctx,
+          color,
+          hp_obj.inner_x,
+          hp_obj.inner_y,
+          get_width(hp_obj._known_hp),
+          hp_obj.inner_height);
+
+        if (hp_obj._known_hp != character.hp) {
+          setTimeout(redraw, 10);
+        } else {
+          resolver();
+        }
+      }
+      setTimeout(redraw, 10);
+
+      await drawing_done;
+    }
+
+    await hp_obj.draw_hp();
+    return hp_obj;
+  }
+
+  async draw_hero_stats() {
+    this.hero_hp = await this.draw_stats(this.hero);
+  }
+
+  async draw_enemy_stats() {
+    this.enemy_hp = await this.draw_stats(this.enemy, true);
+  }
+
+  async update_hero_stats() {
+    await this.hero_hp.draw_hp();
+  }
+
+  async update_enemy_stats() {
+    await this.enemy_hp.draw_hp();
+  }
+
+  async remove_hero_stats() {
+    this.hero_hp.canvas.remove();
+    delete this["hero_hp"];
+  }
+
+  async remove_enemy_stats() {
+    this.enemy_hp.canvas.remove();
+    delete this["enemy_hp"];
   }
 
   async run() {
@@ -516,10 +665,10 @@ export class RunGame extends ui.Action {
     }
 
     this.hero.active_sprite = this.hero.hero_sprite;
-    await ui.Draw.draw(this.hero.hero_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
+    await ui.Draw.draw(this.hero.active_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
 
     this.enemy.active_sprite = this.enemy.enemy_sprite;
-    await ui.Draw.draw(this.enemy.enemy_sprite, Positions.UpRight, {height: "512px"}, 'zoomIn').run();
+    await ui.Draw.draw(this.enemy.active_sprite, Positions.UpRight, {height: "512px"}, 'zoomIn').run();
 
     this.textbox.innerText = "Encountered a ferocious dragon!\n"; // TODO ???
     await ui.wait_for_click();
@@ -531,9 +680,11 @@ export class RunGame extends ui.Action {
     var until_reached = false;
     var is_hero_turn = true;
 
+    await this.draw_hero_stats();
+    await this.draw_enemy_stats();
 
     while(this.enemy.hp && this.hero.hp && (!this.ran)) {
-      // TODO display stats
+      // TODO statuseffect animations?
       this.stats.innerText = "hero hp: " + this.hero.hp + " level: " + this.hero.level + "\n";
       this.stats.innerText += "hero status effects: " + this.hero.status_effects.map(this.describe_effect) + "\n";
       this.stats.innerText += "enemy hp: " + this.enemy.hp + " level: " + this.enemy.level + "\n";
@@ -557,6 +708,9 @@ export class RunGame extends ui.Action {
       if (!this.params.on_until_reached(this.game, this.hero, this.enemy))
         return;
     }
+
+    await this.remove_hero_stats();
+    await this.remove_enemy_stats();
 
     if (!this.ran) {
       if (this.enemy.hp) {
