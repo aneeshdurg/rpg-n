@@ -232,7 +232,7 @@ export async function get_dragon(max_level) {
       heroSprite: 'dragon.png',
       enemySprite: 'dragon.png',
   });
-  await dragon.loaded;
+  await dragon.wait_for_load(null);
 
   var level = Math.random();
   level *= (max_level - 1);

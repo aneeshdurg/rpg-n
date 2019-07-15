@@ -134,10 +134,9 @@ var credits = new Scene({
 
 
 (async function() {
-  console.log("waiting for sanic");
-  await Sonic.loaded;
-  console.log("waiting for assets");
+  await Sonic.wait_for_load();
   await assets.wait_for_load();
+
   console.log("Starting game");
   ui.initialize(document.body, game, [
     splashscreen,

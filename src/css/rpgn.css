@@ -100,3 +100,14 @@
 }
 .party-description {
 }
+
+.loading-progress {
+  position: absolute;
+  bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
+  width: 50%;
+  height: 50%;
+}

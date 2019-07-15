@@ -22,9 +22,6 @@ export class Character {
     this.construct_dialogue();
 
     this.assets = new Assets();
-
-    // resolved promise
-    this.loaded = new Promise(r => { r(); });
   }
 
   construct_dialogue() {
@@ -53,8 +50,14 @@ export class Character {
         character.assets.loadImages(obj.assets.images);
     }
 
-    character.loaded = character.assets.wait_for_load(loading_container);
     return character;
+  }
+
+  async wait_for_load(parent_el) {
+    if (arguments.length)
+      await this.assets.wait_for_load(parent_el);
+    else
+      await this.assets.wait_for_load();
   }
 
   get_image(key) {

@@ -25,6 +25,9 @@ window.game = game;
 
 (async function() {
   // TODO wait for loaded
+  await Sonic.wait_for_load();
+  await assets.wait_for_load();
+
   ui.initialize(document.body, game, [
     splashscreen,
     entry,
