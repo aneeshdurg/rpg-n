@@ -1,4 +1,4 @@
-<link rel="icon" href="/favicon.ico" type="image/x-icon" />
+<link rel="icon" href="favicon.ico" type="image/x-icon" />
 
 ![RPG-N](logo.png)
 ## The (R)ole (P)laying (G)ame / visual (N)ovel engine
