@@ -53,6 +53,7 @@ var fight_scene = new ui.Scene({
         console.log("chose", member);
       }),
       new Combat.RunGame(game, {
+        initial_text: "Encountered a ferocious dragon!\n",
         hero: function get_hero() {
           console.log(member.hp, member.status_effects);
           return member;

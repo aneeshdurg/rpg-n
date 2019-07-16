@@ -25,6 +25,7 @@ export var play_smash = new Scene({
         Sonic.sprite.remove();
       }),
       new Combat.RunGame(game, {
+        initial_text: "Sonic would like to battle!\n",
         hero: function get_hero() {
           return member;
         },

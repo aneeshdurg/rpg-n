@@ -323,7 +323,6 @@ export class UIActionSelector extends ActionSelector {
 
       function show(name) {
         let elements = inventory.querySelectorAll(".inventory-tab");
-        console.log(name, elements);
         for (let e of elements) {
           if (e.id != name) {
             e.style.display = "none";
@@ -409,7 +408,6 @@ export class UIActionSelector extends ActionSelector {
   }
 
   async get_action() {
-    console.log("called");
     var action = await this._get_action();
     if (action instanceof Items.ItemDescriptor) {
       var item = action;
@@ -471,16 +469,11 @@ export class RunGame extends ui.Action {
 
     this.game = game;
     this.params = RunGame.sanitize_params(params);
+    this.initial_text = this.params.initial_text || "";
     this.hero = params.hero; // TODO check that this exists allow it to be a CombatCharacter or a function
     this.enemy = params.enemy;
 
     this.textbox = ui.get_textbox();
-
-    this.stats = document.getElementsByTagName("pre")[0];
-    if (!this.stats) {
-      this.stats = document.createElement("pre");
-      document.body.appendChild(this.stats);
-    }
   }
 
   static sanitize_params(params) {
@@ -553,7 +546,6 @@ export class RunGame extends ui.Action {
   }
 
   _to_num(prop) {
-    console.log(prop);
     return Number((prop + "").replace('px', ''));
   }
 
@@ -588,6 +580,11 @@ export class RunGame extends ui.Action {
 
     hp_obj.inner_width = hp_obj.width - 2 * hp_obj.border;
     hp_obj.inner_height = hp_obj.canvas.height - 2 * hp_obj.border;
+
+    hp_obj.font_size = hp_obj.inner_height - 2;
+    hp_obj.font_size = hp_obj.font_size <= 0 ? hp_obj.inner_height : hp_obj.font_size;
+    hp_obj.ctx.font = hp_obj.font_size + "px Arial"; // TODO change the font
+    console.log("Font", hp_obj.ctx.font);
 
     this._draw_rect(
       hp_obj.ctx,
@@ -648,6 +645,13 @@ export class RunGame extends ui.Action {
           get_width(hp_obj._known_hp),
           hp_obj.inner_height);
 
+        hp_obj.ctx.fillStyle = "black";
+        console.log("x", hp_obj.outer_x + hp_obj.outer_width);
+        hp_obj.ctx.fillText(
+          "Lvl: " + character.level + " | HP: " + Math.floor(hp_obj._known_hp) + "/" + Math.round(character.max_hp),
+          hp_obj.outer_x,
+          hp_obj.font_size);
+
         if (hp_obj._known_hp != character.hp) {
           setTimeout(redraw, 10);
         } else {
@@ -704,8 +708,10 @@ export class RunGame extends ui.Action {
     this.enemy.active_sprite = this.enemy.enemy_sprite;
     await ui.Draw.draw(this.enemy.active_sprite, Positions.UpRight, {height: "512px"}, 'zoomIn').run();
 
-    this.textbox.innerText = "Encountered a ferocious dragon!\n"; // TODO ???
-    await ui.wait_for_click();
+    if (this.initial_text) {
+      this.textbox.innerText = this.initial_text;
+      await ui.wait_for_click();
+    }
 
     var hero_actions = this.hero.action_selector(this.enemy);
     var enemy_actions = this.enemy.action_selector(this.hero);
@@ -719,10 +725,6 @@ export class RunGame extends ui.Action {
 
     while(this.enemy.hp && this.hero.hp && (!this.ran)) {
       // TODO statuseffect animations?
-      this.stats.innerText = "hero hp: " + this.hero.hp + " level: " + this.hero.level + "\n";
-      this.stats.innerText += "hero status effects: " + this.hero.status_effects.map(this.describe_effect) + "\n";
-      this.stats.innerText += "enemy hp: " + this.enemy.hp + " level: " + this.enemy.level + "\n";
-      this.stats.innerText += "enemy status effects: " + this.enemy.status_effects.map(this.describe_effect) + "\n";
 
       if (is_hero_turn) {
         await this.run_turn(this.hero, hero_actions, this.enemy);
