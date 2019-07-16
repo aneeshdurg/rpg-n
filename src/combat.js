@@ -1,4 +1,7 @@
-import * as ui from './ui.js';
+import {Action} from './actions.js';
+import {ui} from './ui.js';
+
+import * as UI from './ui.js';
 import * as Characters from './characters.js';
 import * as Text from './text.js';
 import * as Items from './items.js';
@@ -236,7 +239,7 @@ export class InteractiveCharacter extends Character {
   }
 
   action_selector(enemy) {
-    return new UIActionSelector(this, enemy, ui.get_textbox());
+    return new UIActionSelector(this, enemy, ui.textbox);
   }
 }
 
@@ -422,9 +425,9 @@ export class UIActionSelector extends ActionSelector {
   }
 }
 
-class RunCombat extends ui.Action {}
+class RunCombat extends Action {}
 
-// Combat.scene will process certain Actions that ui.Scene cannot. e.g. RunCombat
+// Combat.scene will process certain Actions that UI.Scene cannot. e.g. RunCombat
 //// How a fight scene works:
 //  Enemy party is summoned
 //  Hero party is summoned
@@ -463,7 +466,7 @@ export class Run extends MoveResult {
  *
  * returns Action?
  */
-export class RunGame extends ui.Action {
+export class RunGame extends Action {
   constructor(game, params) {
     super(() => {});
 
@@ -473,11 +476,10 @@ export class RunGame extends ui.Action {
     this.hero = params.hero; // TODO check that this exists allow it to be a CombatCharacter or a function
     this.enemy = params.enemy;
 
-    this.textbox = ui.get_textbox();
+    this.textbox = ui.textbox;
   }
 
   clear_until() {
-    console.log("until cleared!");
     this.params.until = ((h, e) => true);
     this.params.on_until_reached = ((h, e) => false);
   }
@@ -590,7 +592,6 @@ export class RunGame extends ui.Action {
     hp_obj.font_size = hp_obj.inner_height - 2;
     hp_obj.font_size = hp_obj.font_size <= 0 ? hp_obj.inner_height : hp_obj.font_size;
     hp_obj.ctx.font = hp_obj.font_size + "px Arial"; // TODO change the font
-    console.log("Font", hp_obj.ctx.font);
 
     this._draw_rect(
       hp_obj.ctx,
@@ -652,7 +653,6 @@ export class RunGame extends ui.Action {
           hp_obj.inner_height);
 
         hp_obj.ctx.fillStyle = "black";
-        console.log("x", hp_obj.outer_x + hp_obj.outer_width);
         hp_obj.ctx.fillText(
           "Lvl: " + character.level + " | HP: " + Math.floor(hp_obj._known_hp) + "/" + Math.round(character.max_hp),
           hp_obj.outer_x,
@@ -709,10 +709,10 @@ export class RunGame extends ui.Action {
     }
 
     this.hero.active_sprite = this.hero.hero_sprite;
-    await ui.Draw.draw(this.hero.active_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
+    await ui.draw(this.hero.active_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
 
     this.enemy.active_sprite = this.enemy.enemy_sprite;
-    await ui.Draw.draw(this.enemy.active_sprite, Positions.UpRight, {height: "512px"}, 'zoomIn').run();
+    await ui.draw(this.enemy.active_sprite, Positions.UpRight, {height: "512px"}, 'zoomIn').run();
 
     if (this.initial_text) {
       this.textbox.innerText = this.initial_text;
@@ -759,7 +759,6 @@ export class RunGame extends ui.Action {
     }
 
     if (until_reached) {
-      console.log("quitting bc until reached");
       if (!this.params.on_until_reached(this.game, this.hero, this.enemy))
         return;
     }
@@ -851,5 +850,5 @@ export async function select_party_member(game, parent, params) {
   return selected_member;
 }
 
-export class Scene extends ui.Scene {
+export class Scene extends UI.Scene {
 }

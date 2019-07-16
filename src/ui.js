@@ -1,109 +1,289 @@
+// TODO have multiple 'displays' that can be switched between
+
 import Typed from './typed/typed.js';
+
+import * as Actions from './actions.js';
+import {
+  Action,
+  AsynchronousAction,
+  Choice,
+  ChoiceResult,
+  Delay,
+  ExecAction,
+  Jump,
+  Menu,
+  Sequence,
+} from './actions.js';
 import {History, HistoryItem} from './game.js';
 
-// Module UI
-export const EXECUTED_SCENE = Symbol('EXECUTED_SCENE');
+export class UI {
+  constructor() {
+    this.parent = null;
 
-export const NO_ACTION = Symbol('NO_ACTION');
-export const UNREACHABLE = Symbol('UNREACHABLE');
-export const WAIT_FOR_CLICK = Symbol('WAIT_FOR_CLICK');
-export const HIDE_TEXTBOX = Symbol('HIDE_TEXTBOX');
-export const SHOW_TEXTBOX = Symbol('SHOW_TEXTBOX');
-export const CLEAR_TEXTBOX = Symbol('CLEAR_TEXTBOX');
+    this.main_display = null;
+    this.main_display_img = null;
 
-// TODO implement pause + save menu
+    // a secondary div to throw temporary menus and stuff onto
+    this.secondary_display = null;
 
-var _parent = null;
+    this.pause_menu = null;
+    this.pause_button = null;
 
-var _main_display = null;
-var _main_display_img = null;
+    this.textbox = null;
 
-// a secondary div to throw temporary menus and stuff onto
-var _secondary_display = null;
+    this.state = {
+      hijacker: null,
+      waiting_for_clicks: null,
+    };
 
-var _pause_menu = null;
-var _pause_button = null;
-
-var _textbox = null;
-
-var _state = {
-  hijacker: null,
-  waiting_for_clicks: null,
-};
-
-var _scene_map = new Map();
-
-export function hide_textbox() {
-  _textbox.style.display = "none";
-}
-
-export function show_textbox() {
-  _textbox.style.display = "";
-}
-
-export function toggle_textbox() {
-  if (_textbox.style.display == "")
-    _textbox.style.display = "none";
-  else if (_textbox.style.display == "none")
-    _textbox.style.display = "";
-}
-
-export function initialize(parent, game, scene_list) {
-  document.body.style.MozUserSelect="none";
-  document.body.style.userSelect="none"
-
-  _parent = document.createElement('div');
-  _parent.classList.add("rpgn-parent");
-  parent.appendChild(_parent);
-
-  _main_display = document.createElement('div');
-  _main_display.classList.add("rpgn-main_display");
-  _main_display.onclick = toggle_textbox;
-
-  _secondary_display = document.createElement('div');
-  _secondary_display.classList.add("rpgn-secondary_display");
-
-  _textbox = document.createElement('div');
-  _textbox.classList.add("rpgn-textbox");
-  _textbox.onclick = _register_click_event;
-
-  _parent.appendChild(_main_display);
-  _parent.appendChild(_textbox);
-
-  for (var scene of scene_list) {
-    if (_scene_map.get(scene.name)) {
-      throw new Error("Scene name '" + scene.name + "' is already taken! Please use unique names!");
-    }
-    _scene_map.set(scene.name, scene);
+    this.scene_map = new Map();
   }
 
-  _pause_menu = document.createElement("div");
-  _pause_menu.classList.add("pause");
-  _pause_menu.onclick = function(e) {
-    if (e.target == _pause_menu) {
-      remove_pause();
+  initialize(parent, game, scene_list) {
+    var that = this;
+
+    parent.style.MozUserSelect="none";
+    parent.style.userSelect="none"
+
+    this.parent = document.createElement('div');
+    this.parent.classList.add("rpgn-parent");
+    parent.appendChild(this.parent);
+
+    this.main_display = document.createElement('div');
+    this.main_display.classList.add("rpgn-main_display");
+    this.main_display.onclick = this.toggle_textbox.bind(this);
+
+    this.secondary_display = document.createElement('div');
+    this.secondary_display.classList.add("rpgn-secondary_display");
+
+    this.textbox = document.createElement('div');
+    this.textbox.classList.add("rpgn-textbox");
+    function register_click_event(e) {
+      if (that.state.hijacker) {
+        that.state.hijacker(e);
+        that.state.hijacker = null;
+      } else if (that.state.waiting_for_clicks) {
+        that.state.waiting_for_clicks();
+        that.state.waiting_for_clicks = null;
+      } else {
+        // cancel animations
+        var animated = document.querySelectorAll('.animated');
+        for (var el of animated) {
+          if (!el.classList.contains('nocancel')) {
+            Draw.cancel_animations(el);
+          }
+        }
+      }
+    }
+    this.textbox.onclick = register_click_event;
+
+    this.parent.appendChild(this.main_display);
+    this.parent.appendChild(this.textbox);
+
+    for (var scene of scene_list) {
+      if (this.scene_map.get(scene.name)) {
+        throw new Error("Scene name '" + scene.name + "' is already taken! Please use unique names!");
+      }
+      this.scene_map.set(scene.name, scene);
+    }
+
+    this.pause_menu = document.createElement("div");
+    this.pause_menu.classList.add("pause");
+    this.pause_menu.onclick = function(e) {
+      if (e.target == this.pause_menu) {
+        that.remove_pause();
+      }
+    }
+    game.setup_pause_menu(this.pause_menu);
+
+    this.pause_button = document.createElement("button");
+    this.pause_button.innerHTML = "Pause";
+    this.pause_button.onclick = function() { that.summon_pause(game); };
+    this.pause_button.classList.add("pause-button");
+
+    this.parent.appendChild(this.pause_button);
+  }
+
+
+  activate_secondary_display() {
+    // clear display
+    this.secondary_display.innerHTML = "";
+    // render display
+    this.parent.appendChild(this.secondary_display);
+    return this.secondary_display;
+  }
+
+  deactivate_secondary_display() {
+    this.secondary_display.remove();
+  }
+
+  hide_textbox() {
+    this.textbox.style.display = "none";
+  }
+
+  show_textbox() {
+    this.textbox.style.display = "";
+  }
+
+  toggle_textbox() {
+    if (this.textbox.style.display == "")
+      this.textbox.style.display = "none";
+    else if (this.textbox.style.display == "none")
+      this.textbox.style.display = "";
+  }
+
+  remove_pause() {
+    while(this.pause_menu.paused_music.length)
+      this.playAudio(this.pause_menu.paused_music.pop(), {noReset: true, asynchronous: true}).run();
+    this.pause_menu.remove();
+  }
+
+  async summon_pause(game) {
+    this.parent.appendChild(this.pause_menu);
+    this.pause_menu.paused_music = await pause_all_audio();
+    game.pause_handler(this.pause_menu);
+  }
+
+  // Actions:
+  draw(element, position, img_params, animation, animation_params) {
+    return Draw.draw(this.main_display, element, position, img_params, animation, animation_params);
+  }
+
+  clearScene(duration) {
+    var that = this;
+    return new Action(async function() {
+      var waiters = [];
+      var elements = (function() {
+        var nodes = [];
+        for (var n of that.main_display.childNodes)
+          nodes.push(n);
+        return nodes;
+      })();
+
+      for (var element of elements) {
+        if (duration) {
+          waiters.push(Draw.do_animation(element, "fadeOut", {
+            duration: duration,
+            noCancel: true,
+          }));
+        }
+      }
+      waiters.push(pause_all_audio());
+
+      for (var waiter of waiters)
+        await waiter;
+
+      for (var element of elements) {
+        element.remove();
+        element.style.display = "none";
+      }
+
+      if (that.main_display_img) {
+        that.main_display_img.remove();
+        that.main_display_img = null;
+      }
+
+      that.reset_textbox();
+    });
+  }
+
+  reset_textbox() {
+    this.textbox.innerHTML = "";
+  }
+
+  async wait_for_click() {
+    var that = this;
+    var p = new Promise((r) => {
+      that.state.waiting_for_clicks = r;
+    });
+    await p;
+  }
+
+  setBackground(element, duration) {
+    var that = this;
+    return new Action(async function() {
+      element.remove();
+      apply_background_style(element);
+      that.main_display.insertBefore(element, that.main_display.childNodes[0]);
+      that.main_display_img = element;
+
+      await Draw.do_animation(that.main_display_img, "fadeIn", {"duration": duration});
+    });
+  }
+
+  /** params:
+   *  loop
+   *  noReset
+   *  fadeIn
+   *  volume
+   *
+   * TODO add params to control fadeIn step/time
+   */
+  // TODO implement pauseAudio
+  playAudio(audio, params) {
+    params = params || {};
+    params.volume = params.volume || 1;
+
+    var resolver = null;
+    var audio_done = new Promise((r) => { resolver = r; });
+
+    function callback() {
+      if (params.loop) {
+        audio.loop = true;
+      } else {
+        audio.loop = false;
+      }
+
+      if (!params.noReset) {
+        audio.currentTime = 0;
+      }
+
+      audio.onended = function() { resolver(); };
+
+      if (params.fadeIn) {
+        audio.volume = 0;
+        transitionVolume(audio, params.volume);
+      } else {
+        audio.volume = params.volume;
+      }
+
+      audio.play();
+
+      return audio_done;
+    }
+
+    if (params.asynchronous) {
+      return new AsynchronousAction(callback);
+    } else {
+      return new Action(callback);
     }
   }
-  game.setup_pause_menu(_pause_menu);
 
-  _pause_button = document.createElement("button");
-  _pause_button.innerHTML = "Pause";
-  _pause_button.onclick = function() { summon_pause(game); };
-  _pause_button.classList.add("pause-button");
+  exec (callback) {
+    return new ExecAction(callback);
+  }
 
-  _parent.appendChild(_pause_button);
-}
+  jump(next) {
+    return new Jump(next);
+  }
 
-export async function summon_pause(game) {
-  _parent.appendChild(_pause_menu);
-  _pause_menu.paused_music = await pause_all_audio();
-  game.pause_handler(_pause_menu);
-}
+  sequence() {
+    return new Sequence(arguments);
+  }
 
-export function remove_pause() {
-  while(_pause_menu.paused_music.length)
-    playAudio(_pause_menu.paused_music.pop(), {noReset: true, asynchronous: true}).run();
-  _pause_menu.remove();
+  menu() {
+    var options = arguments;
+    return new Menu(options);
+  }
+
+  choice() {
+    var choices = arguments;
+    return new Choice(choices);
+  }
+
+  delay(val) {
+    return new Delay(val);
+  }
 }
 
 function apply_background_style(element) {
@@ -152,95 +332,16 @@ async function pause_all_audio() {
   return paused_audio;
 }
 
-function _register_click_event(e) {
-  if (_state.hijacker) {
-    _state.hijacker(e);
-    _state.hijacker = null;
-  } else if (_state.waiting_for_clicks) {
-    _state.waiting_for_clicks();
-    _state.waiting_for_clicks = null;
-  } else {
-    // cancel animations
-    var animated = document.querySelectorAll('.animated');
-    for (var el of animated) {
-      if (!el.classList.contains('nocancel')) {
-        Draw.cancel_animations(el);
-      }
-    }
-  }
-}
+export var ui = new UI();
 
-export async function wait_for_click() {
-  var p = new Promise((r) => {
-    _state.waiting_for_clicks = r;
-  });
-  await p;
-}
-
-export function dbg_get__main_display_img() {
-  return _main_display_img;
-}
-
-export function dbg_get__main_display() {
-  return _main_display;
-}
-
-export function get_textbox() {
-  return _textbox;
-}
-
-
-export function clearScene(duration) {
-  return new Action(async function() {
-    var waiters = [];
-    var elements = (function() {
-      var nodes = [];
-      for (var n of _main_display.childNodes)
-        nodes.push(n);
-      return nodes;
-    })();
-
-    for (var element of elements) {
-      if (duration) {
-        waiters.push(Draw.do_animation(element, "fadeOut", {
-          duration: duration,
-          noCancel: true,
-        }));
-      }
-    }
-    waiters.push(pause_all_audio());
-
-    for (var waiter of waiters)
-      await waiter;
-
-    for (var element of elements) {
-      element.remove();
-      element.style.display = "none";
-    }
-
-    if (_main_display_img) {
-      _main_display_img.remove();
-      _main_display_img = null;
-    }
-
-    _textbox.innerHTML = "";
-  });
-}
-
-function reset_textbox() {
-  _textbox.innerHTML = "";
-}
-
-// TODO decide if this should manage it's own spritestack
-// TODO decide if it should subclass Action
 const valid_scene_symbols = new Set([
-  NO_ACTION,
-  UNREACHABLE,
-  WAIT_FOR_CLICK,
-  HIDE_TEXTBOX,
-  SHOW_TEXTBOX,
-  CLEAR_TEXTBOX,
-]);
+  Actions.NO_ACTION,
+  Actions.UNREACHABLE,
+  Actions.WAIT_FOR_CLICK,
+  Actions.HIDE_TEXTBOX,
+  Actions.SHOW_TEXTBOX,
+  Actions.CLEAR_TEXTBOX,
+])
 
 export class Scene {
   constructor(params) {
@@ -251,16 +352,16 @@ export class Scene {
   }
 
   async handle_text(text) {
-      reset_textbox();
+      ui.reset_textbox();
       await this.append_text(text);
-      await wait_for_click();
+      await ui.wait_for_click();
   }
 
   async append_text(text) {
     var resolver = null;
     var typing_done = new Promise((r) => { resolver = r; });
     var p = document.createElement('p');
-    _textbox.appendChild(p);
+    ui.textbox.appendChild(p);
     var typed = new Typed(p, {
       strings: [text],
       showCursor: false,
@@ -273,10 +374,10 @@ export class Scene {
       typed.destroy();
       p.innerHTML = text;
     }
-    _state.hijacker = kill_typer;
+    ui.state.hijacker = kill_typer;
 
     await typing_done;
-    _state.hijacker = null;
+    ui.state.hijacker = null;
   }
 
   async handle_action(game, action, idx) {
@@ -297,7 +398,7 @@ export class Scene {
         scene_name = res;
       } else if (action instanceof Choice && res instanceof ChoiceResult) {
         game.history.push(HistoryItem.choice(this.name, idx, res.id));
-        if (res.scene_name == NO_ACTION)
+        if (res.scene_name == Actions.NO_ACTION)
           return null;
         scene_name = res.scene_name;
       } else {
@@ -306,29 +407,29 @@ export class Scene {
 
       // TODO consider refactoring this to append res to an array so that we
       // function.
-      var next_scene = _scene_map.get(scene_name);
+      var next_scene = ui.scene_map.get(scene_name);
       if (!next_scene) {
         throw new Error("Could not find scene '" + scene_name + "'");
       }
 
       await next_scene.run(game);
-      return EXECUTED_SCENE;
+      return Actions.EXECUTED_SCENE;
     }
 
     return res;
   }
 
   async handle_sequence(game, idx, sequence) {
-    reset_textbox();
+    ui.reset_textbox();
     while (!sequence.done) {
       var val = await sequence.get();
       if (typeof(val) == 'string') {
         await this.append_text(val);
-        await wait_for_click(); //  TODO text that doesn't need a click
+        await ui.wait_for_click(); //  TODO text that doesn't need a click
       } else {
         var res = await this.handle_all(game, val, idx);
-        if (res == EXECUTED_SCENE)
-          return EXECUTED_SCENE;
+        if (res == Actions.EXECUTED_SCENE)
+          return Actions.EXECUTED_SCENE;
       }
     }
   }
@@ -338,18 +439,18 @@ export class Scene {
       throw new Error("Symbol '" + symbol.description + "' is not permitted in this context");
     }
 
-    if (symbol == NO_ACTION)
+    if (symbol == Actions.NO_ACTION)
       return
-    else if (symbol == UNREACHABLE)
+    else if (symbol == Actions.UNREACHABLE)
       throw new Error("Reached game point tagged as UNREACHABLE");
-    else if (symbol == WAIT_FOR_CLICK)
-      return await wait_for_click();
-    else if (symbol == HIDE_TEXTBOX)
-      hide_textbox();
-    else if (symbol == SHOW_TEXTBOX)
-      show_textbox();
-    else if (symbol == CLEAR_TEXTBOX)
-      _textbox.innerHTML = "";
+    else if (symbol == Actions.WAIT_FOR_CLICK)
+      return await ui.wait_for_click();
+    else if (symbol == Actions.HIDE_TEXTBOX)
+      ui.hide_textbox();
+    else if (symbol == Actions.SHOW_TEXTBOX)
+      ui.show_textbox();
+    else if (symbol == Actions.CLEAR_TEXTBOX)
+      ui.reset_textbox();
   }
 
   async handle_all(game, action, idx) {
@@ -378,7 +479,7 @@ export class Scene {
       game.history.push(HistoryItem.scene_progress(this.name, idx));
 
       var res = await this.handle_all(game, action);
-      if (res == EXECUTED_SCENE)
+      if (res == Actions.EXECUTED_SCENE)
         break;
     }
   }
@@ -387,233 +488,18 @@ export class Scene {
     game.save();
 
     if (this.cleanup) {
-      await clearScene().run();
+      await ui.clearScene().run();
     }
 
     if (this.hide_textbox) {
-      hide_textbox();
+      ui.hide_textbox();
     } else {
-      show_textbox();
+      ui.show_textbox();
     }
 
     var contents = await this.contents(game);
     // TODO validate that contents is array of Actions or strings
     return this._scene(game, contents, idx);
-  }
-};
-
-
-export function setBackground(element, duration) {
-  return new Action(async function() {
-    element.remove();
-    apply_background_style(element);
-    _main_display.insertBefore(element, _main_display.childNodes[0]);
-    _main_display_img = element;
-
-    await Draw.do_animation(_main_display_img, "fadeIn", {"duration": duration});
-  });
-}
-
-export class ExecAction {
-  constructor(callback) {
-    this.callback = callback;
-  }
-
-  get_action(game) {
-    return this.callback(game);
-  }
-}
-
-/**
- * params:
- *  loop
- *  noReset
- *  fadeIn
- *  volume
- *
- * TODO add params to control fadeIn step/time
- */
-export function playAudio(audio, params) {
-  params = params || {};
-  params.volume = params.volume || 1;
-
-  var resolver = null;
-  var audio_done = new Promise((r) => { resolver = r; });
-
-  function callback() {
-    if (params.loop) {
-      audio.loop = true;
-    } else {
-      audio.loop = false;
-    }
-
-    if (!params.noReset) {
-      audio.currentTime = 0;
-    }
-
-    audio.onended = function() { resolver(); };
-
-    if (params.fadeIn) {
-      audio.volume = 0;
-      transitionVolume(audio, params.volume);
-    } else {
-      audio.volume = params.volume;
-    }
-
-    audio.play();
-
-    return audio_done;
-  }
-
-  if (params.asynchronous) {
-    return new AsynchronousAction(callback);
-  } else {
-    return new Action(callback);
-  }
-}
-
-// TODO implement pauseAudio
-
-export function exec (callback) {
-  return new ExecAction(callback);
-}
-
-export function jump(next) {
-  return new Jump(next);
-};
-
-export function sequence() {
-  return new Sequence(arguments);
-}
-
-export function menu() {
-  var options = arguments;
-  return new Menu(options);
-}
-
-export function choice() {
-  var choices = arguments;
-  return new Choice(choices);
-};
-
-export function delay(val) {
-  return new Delay(val);
-}
-
-// A class representing an action that a scene should evaluate.
-export class Action {
-  constructor(callback) {
-    if (!(callback instanceof Function)) {
-      throw new Error("Callback was not a function");
-    }
-    this.callback = callback;
-  }
-
-  // TODO think about chaining events and text
-  //and(next_action) {
-  //  if (next_action instanceof Action || typeof(next_action) == 'string') {
-  //    this.and = next_action;
-  //  }
-  //}
-
-  run() {
-    return this.callback();
-  }
-}
-
-// Indicates a jump to another scene
-export class Jump extends Action {
-  constructor(name) {
-    super(() => name);
-  }
-}
-
-
-
-export class Menu extends Action {
-  // TODO block until user makes a selection and then return that selection back
-  // to the game?
-  constructor(options) {
-    super(async function() {
-      var resolver = null;
-      var option_chosen = new Promise((r) => { resolver = r; });
-      var chosen_option = null;
-      _textbox.innerHTML = "";
-      for (var option of options) {
-        // option[0] == choice text
-        // option[1] == optional style for button
-        // TODO use mousetrap for keyboard support
-        var b = document.createElement('button');
-        b.className = "menuButton";
-        if (option.length >= 2) {
-          Draw.set_style(b, option[1]);
-        }
-
-        b.innerHTML = option[0];
-        function _gen_callback(option_text) {
-          return function () {
-            resolver();
-            chosen_option = option_text;
-          };
-        }
-        b.onclick = _gen_callback(option[0]);
-
-        _textbox.appendChild(b);
-        _textbox.appendChild(document.createElement('br'));
-      }
-
-      await option_chosen;
-      return chosen_option;
-    });
-  }
-}
-
-// No different from a normal action but is just a tag that this action prefers not to be waited on
-export class AsynchronousAction extends Action {}
-
-class ChoiceResult {
-  constructor(scene_name, id) {
-    this.scene_name = scene_name;
-    this.id = id;
-  }
-}
-
-class Choice extends Action {
-  constructor(choices) {
-    super(async function() {
-      var resolver = null;
-      var choice_chosen = new Promise((r) => { resolver = r; });
-      var chosen_action = null;
-      var chosen_idx = -1;
-      for (var idx in choices) {
-        var choice = choices[idx]
-        // choice[0] == choice text
-        // choice[1] == choice action or NO_ACTION
-        // choice[2] == optional style for button
-        // TODO use mousetrap for keyboard support
-        var b = document.createElement('button');
-        b.className = "choiceButton";
-        if (choice.length >= 3) {
-          Draw.set_style(b, choice[2]);
-        }
-
-        b.innerHTML = choice[0];
-        function _gen_callback(callback, idx) {
-          return function () {
-            resolver();
-            chosen_action = callback;
-            chosen_idx = idx;
-          };
-        }
-        b.onclick = _gen_callback(choice[1], idx);
-
-        _textbox.appendChild(b);
-        _textbox.appendChild(document.createElement('br'));
-      }
-
-      await choice_chosen;
-      return new ChoiceResult(chosen_action, chosen_idx);
-    });
   }
 }
 
@@ -714,7 +600,7 @@ export class Draw {
   /**
    * img_params, animation, animation_params are optional
    */
-  static draw(element, position, img_params, animation, animation_params) {
+  static draw(parent_el, element, position, img_params, animation, animation_params) {
     async function callback() {
       // remove element if it was previously somewhere else
       element.remove();
@@ -724,7 +610,7 @@ export class Draw {
       if (img_params)
         Draw.set_style(element, img_params);
 
-      _main_display.appendChild(element);
+      parent_el.appendChild(element);
 
       if (animation)
         await Draw.do_animation(element, animation, animation_params);
@@ -737,71 +623,4 @@ export class Draw {
     element.style.display = "none";
     document.body.appendChild(element);
   }
-}
-
-export class Delay extends Action {
-  constructor(delay) {
-    super(() => {});
-    if (typeof(delay) != 'number') {
-      throw new Error("Expected number!");
-    }
-
-    this.delay = delay;
-  }
-
-  async run() {
-    await this.wait();
-  }
-
-  async wait() {
-    await Delay.sleep(this.delay);
-  }
-
-  static async sleep(duration) {
-    var resolver = null;
-    var sleep_done = new Promise((r) => { resolver = r; });
-    setTimeout(resolver, duration);
-
-    await sleep_done;
-  }
-}
-
-export class Sequence {
-  constructor(args) {
-    // check arguments types
-    this.values = [];
-    for (var argument of args)
-      this.values.push(argument);
-
-    this.done = false;
-  }
-
-  async get() {
-    while (true) {
-      if (!this.values.length)
-        return null;
-
-      var val = this.values.shift();
-      if (this.values.length == 0)
-        this.done = true;
-
-      if (val instanceof Delay) {
-        await val.wait();
-      } else {
-        return val;
-      }
-    }
-  }
-}
-
-export function activate_secondary_display() {
-  // clear display
-  _secondary_display.innerHTML = "";
-  // render display
-  _parent.appendChild(_secondary_display);
-  return _secondary_display;
-}
-
-export function deactivate_secondary_display() {
-  _secondary_display.remove();
 }
