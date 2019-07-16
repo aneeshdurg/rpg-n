@@ -14,11 +14,18 @@ export const CLEAR_TEXTBOX = Symbol('CLEAR_TEXTBOX');
 // TODO implement pause + save menu
 
 var _parent = null;
+
 var _main_display = null;
 var _main_display_img = null;
+
+// a secondary div to throw temporary menus and stuff onto
+var _secondary_display = null;
+
 var _pause_menu = null;
 var _pause_button = null;
+
 var _textbox = null;
+
 var _state = {
   hijacker: null,
   waiting_for_clicks: null,
@@ -52,6 +59,9 @@ export function initialize(parent, game, scene_list) {
   _main_display = document.createElement('div');
   _main_display.classList.add("rpgn-main_display");
   _main_display.onclick = toggle_textbox;
+
+  _secondary_display = document.createElement('div');
+  _secondary_display.classList.add("rpgn-secondary_display");
 
   _textbox = document.createElement('div');
   _textbox.classList.add("rpgn-textbox");
@@ -782,4 +792,16 @@ export class Sequence {
       }
     }
   }
+}
+
+export function activate_secondary_display() {
+  // clear display
+  _secondary_display.innerHTML = "";
+  // render display
+  _parent.appendChild(_secondary_display);
+  return _secondary_display;
+}
+
+export function deactivate_secondary_display() {
+  _secondary_display.remove();
 }

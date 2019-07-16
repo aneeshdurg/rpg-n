@@ -299,6 +299,23 @@ export class UIActionSelector extends ActionSelector {
   gen_items_menu(resolver) {
     var that = this;
     return function() {
+      var secondary = ui.activate_secondary_display();
+
+      var container = document.createElement("div");
+
+      secondary.appendChild(container);
+      container.style.width = "100%";
+      container.style.height = "100%";
+
+      function cleanup() {
+        container.remove();
+        ui.deactivate_secondary_display();
+      }
+      container.onclick = function(e) {
+        if (e.target == container)
+          cleanup();
+      }
+
       that.table = document.createElement("table");
       that.table.id = "itemsTable";
 
@@ -308,8 +325,9 @@ export class UIActionSelector extends ActionSelector {
         item.innerHTML = "potion";
         item.addEventListener('click', (function() {
           return function() {
-            resolver();
+            cleanup();
             that.selected_action = that.hero.backpack.potions.remove(idx);
+            resolver();
           }
         })());
         potions_row.appendChild(item);
@@ -329,7 +347,7 @@ export class UIActionSelector extends ActionSelector {
 
       that.table.appendChild(potions_row);
       that.table.appendChild(misc_row);
-      that.actions.appendChild(that.table);
+      container.appendChild(that.table);
     }
   }
 
@@ -354,13 +372,11 @@ export class UIActionSelector extends ActionSelector {
     this.move_buttons.map((e) => { e.addEventListener('click', click_handler); });
 
     this.run.addEventListener('click', click_handler);
+
     var item_handler = this.gen_items_menu(resolver);
     this.items.addEventListener('click', item_handler);
 
     await action_done;
-
-    if (this.table)
-      this.table.remove();
 
     // TODO refactor move_buttons stuff
     this.move_buttons.map((e) => { e.removeEventListener('click', click_handler); e.remove(); });
