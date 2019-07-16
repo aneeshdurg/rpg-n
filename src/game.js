@@ -1,6 +1,6 @@
 import * as items from './items.js';
 import * as characters from './characters.js';
-import * as ui from './ui.js';
+import {ui} from './ui.js';
 
 export class Game {
   constructor(player) {

@@ -1,9 +1,14 @@
+import * as Actions from '../src/actions.js';
 import * as Combat from '../src/combat.js';
-import * as ui from '../src/ui.js';
-import {Game} from '../src/game.js';
-import {Player} from '../src/characters.js';
-import {Knight, get_dragon} from './test_combat_impl.js';
+import * as UI from '../src/ui.js';
+
+import {Action} from '../src/actions.js';
 import {assets} from '../src/assets.js';
+import {Player} from '../src/characters.js';
+import {Game} from '../src/game.js';
+import {ui} from '../src/ui.js';
+
+import {Knight, get_dragon} from './test_combat_impl.js';
 
 window.Combat = Combat;
 
@@ -36,11 +41,10 @@ assets.loadAudio({
   fireball: '431174__highpixel__fireball-explosion.wav',
   punch: '118513__thefsoundman__punch-02.wav',
 });
-var fight_scene = new ui.Scene({
+var fight_scene = new UI.Scene({
   name: 'battle_knight',
   cleanup: true,
   contents: async function(game) {
-    console.log(game);
     var knight = game.player.party[0];
     var dragon = await get_dragon(knight.level);
     var member = null;
@@ -48,14 +52,12 @@ var fight_scene = new ui.Scene({
       "Ready to fight?",
       "Choose your fighter!",
       ui.setBackground(assets.images.get('wasteland')),
-      new ui.Action(async function() {
-        member = await Combat.select_party_member(game, ui.get_textbox(), {});
-        console.log("chose", member);
+      new Action(async function() {
+        member = await Combat.select_party_member(game, ui.textbox, {});
       }),
       new Combat.RunGame(game, {
         initial_text: "Encountered a ferocious dragon!\n",
         hero: function get_hero() {
-          console.log(member.hp, member.status_effects);
           return member;
         },
         enemy: dragon,
@@ -66,7 +68,6 @@ var fight_scene = new ui.Scene({
           // TODO level based events
           //  e.g. learning moves, evolving, etc
           //  some of those may require interactive actions!
-          console.log(hero, enemy, enemy.level);
           hero.exp += enemy.level * 5;
           game.flags.set('victory', 1);
         },
@@ -74,7 +75,6 @@ var fight_scene = new ui.Scene({
           game.flags.set('victory', 0);
         },
         on_lose: (game) => {
-          console.log("lost!");
           game.flags.set('victory', -1);
         },
       }),
@@ -93,7 +93,7 @@ var fight_scene = new ui.Scene({
             "Continue adventuring?",
             ui.choice(
               ["yeet", 'battle_knight'],
-              ["nah fam", ui.NO_ACTION],
+              ["nah fam", Actions.NO_ACTION],
             ),
             ui.clearScene(500),
             "Good bye!",

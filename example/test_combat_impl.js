@@ -1,6 +1,7 @@
 import * as Combat from '../src/combat.js';
 import * as Items from '../src/items.js';
-import * as ui from '../src/ui.js';
+
+import {ui, Draw} from '../src/ui.js';
 import {assets} from '../src/assets.js';
 
 export var Types = new Combat.MoveTypes({
@@ -130,11 +131,11 @@ export class Punch extends ExampleMove {
     if (victim.active_sprite) {
       var position = this.get_sprite_position(victim);
 
-      await ui.Draw.draw(this.sprite, position).run();
+      await ui.draw(this.sprite, position).run();
       ui.playAudio(this.sfx, {asynchronous: true}).run();
       await ui.delay(250).run();
-      await ui.Draw.animate(this.sprite, 'zoomOut').run();
-      await ui.Draw.remove(this.sprite);
+      await Draw.animate(this.sprite, 'zoomOut').run();
+      await Draw.remove(this.sprite);
 
     } else {
     }
@@ -177,11 +178,11 @@ export class Fireball extends ExampleMove {
     if (victim.active_sprite) {
       var position = this.get_sprite_position(victim);
 
-      await ui.Draw.draw(this.sprite, position).run();
+      await ui.draw(this.sprite, position).run();
       ui.playAudio(this.sfx, {asynchronous: true}).run();
       await ui.delay(250).run();
-      await ui.Draw.animate(this.sprite, 'zoomOut').run();
-      await ui.Draw.remove(this.sprite);
+      await Draw.animate(this.sprite, 'zoomOut').run();
+      await Draw.remove(this.sprite);
 
     } else {
     }

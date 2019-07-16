@@ -5,8 +5,9 @@ import {assets} from '../src/assets.js';
 import {Game} from '../src/game.js';
 import {Character, Player} from '../src/characters.js';
 import {Left, Right, Center} from '../src/positions.js'
-import * as ui from '../src/ui.js';
-import {Scene} from '../src/ui.js';
+
+import {ui, Draw, Scene} from '../src/ui.js';
+import * as Actions from '../src/actions.js';
 import * as Text from '../src/text.js';
 
 import Typed from '../src/typed/typed.js';
@@ -59,19 +60,19 @@ var intro = new Scene({
       ui.setBackground(assets.images.get('mario')),
       ui.playAudio(
         assets.audio.get('happy'), {asynchronous: true, loop: true, fadeIn: true}),
-      await ui.Draw.draw(
+      await ui.draw(
           Sonic.get_image('default'), Left, {"height": "100%"}, 'lightSpeedIn'),
       s("Hi! I'm Sonic!"),
       s("How are you?"),
       ui.choice(
         ["I'm good! hbu?", 'doing_good', {'backgroundColor': 'rgba(100, 200, 0, 1)'}],
-        ["bad.", ui.NO_ACTION, {'backgroundColor': 'rgba(200, 50, 0, 1)'}],
+        ["bad.", Actions.NO_ACTION, {'backgroundColor': 'rgba(200, 50, 0, 1)'}],
       ),
       me("Bad."),
       s("Oh. I'm sorry to hear that."),
-      await ui.Draw.draw(assets.images.get('coin'), Center, {height: "10%"}),
+      await ui.draw(assets.images.get('coin'), Center, {height: "10%"}),
       s("This is a coin, let's toss it and see where it lands!"),
-      ui.Draw.animate(assets.images.get('coin'), 'flipInX'),
+      Draw.animate(assets.images.get('coin'), 'flipInX'),
       ui.exec((game) => {
         if (Math.random() < 0.5) {
           return ui.sequence(
@@ -105,7 +106,7 @@ var doing_good = new Scene({
     return [
       me("I'm doing well! How about you?"),
       s("I'm swell!"),
-      ui.Draw.animate(Sonic.get_image('default'), 'bounce', {asynchronous: true, iterationCount: 'infinite', noCancel: true}),
+      Draw.animate(Sonic.get_image('default'), 'bounce', {asynchronous: true, iterationCount: 'infinite', noCancel: true}),
       s("Thanks for asking!"),
       ui.clearScene(1000), // TODO make clearScene apply fadeOut to everything on the display
       ui.delay(500),
@@ -120,14 +121,14 @@ var credits = new Scene({
   contents: async function (game) {
     return [
       // TODO create scrolling credits.
-      await ui.Draw.draw(Sonic.get_image('default'), Center, {"height": "100%"}, 'flipInY', {'duration': '500ms'}),
+      await ui.draw(Sonic.get_image('default'), Center, {"height": "100%"}, 'flipInY', {'duration': '500ms'}),
       ui.sequence(
         s("This is the end of the game!"),
         ui.playAudio(assets.audio.get('coin'), {asynchronous: true}),
         Text.center_align(s("Thanks for playing!")),
       ),
       ui.delay(1000),
-      ui.HIDE_TEXTBOX,
+      Actions.HIDE_TEXTBOX,
     ];
   },
 });
