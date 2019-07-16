@@ -208,10 +208,10 @@ export class Knight extends Combat.InteractiveCharacter {
   constructor() {
     super("knight", "green", ["fighting"], Types);
     this.moves.push(new Punch(this));
-    this.backpack.potions.push(new Items.PotionDescriptor(this, 0.5));
-    this.backpack.potions.push(new Items.PotionDescriptor(this, 0.5));
-    this.backpack.potions.push(new Items.PotionDescriptor(this, 0.5));
-    this.backpack.potions.push(new Items.PotionDescriptor(this, 0.5));
+    this.backpack.potions.push(new Items.PotionDescriptor(this, "Heal", 0.5));
+    this.backpack.potions.push(new Items.PotionDescriptor(this, "Heal", 0.5));
+    this.backpack.potions.push(new Items.PotionDescriptor(this, "Heal", 0.5));
+    this.backpack.potions.push(new Items.PotionDescriptor(this, "Heal", 0.5));
     this.level = 2;
   }
 

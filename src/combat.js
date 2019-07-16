@@ -316,38 +316,56 @@ export class UIActionSelector extends ActionSelector {
           cleanup();
       }
 
-      that.table = document.createElement("table");
-      that.table.id = "itemsTable";
+      var inventory = document.createElement("div");
+      inventory.className = "inventory";
 
-      var potions_row = document.createElement("tr");
-      for (var idx in that.hero.backpack.potions) {
-        var item = document.createElement("th");
-        item.innerHTML = "potion";
-        item.addEventListener('click', (function() {
-          return function() {
-            cleanup();
-            that.selected_action = that.hero.backpack.potions.remove(idx);
-            resolver();
+      var types = ["potions", "weapons", "equipment", "misc"];
+
+      function show(name) {
+        let elements = inventory.querySelectorAll(".inventory-tab");
+        console.log(name, elements);
+        for (let e of elements) {
+          if (e.id != name) {
+            e.style.display = "none";
+          } else {
+            e.style.display = "";
           }
-        })());
-        potions_row.appendChild(item);
-      }
-      var misc_row = document.createElement("tr");
-      for (var idx in that.hero.backpack.misc) {
-        var item = document.createElement("th");
-        item.innerHTML = that.hero.backpack.misc[idx].name;
-        item.addEventListener('click', (function() {
-          return function() {
-            resolver();
-            that.selected_action = that.hero.backpack.misc.remove(idx);
-          }
-        })());
-        misc_row.appendChild(item);
+        }
       }
 
-      that.table.appendChild(potions_row);
-      that.table.appendChild(misc_row);
-      container.appendChild(that.table);
+      for (let type of types) {
+        let button = document.createElement("button");
+        button.innerHTML = type;
+        button.className = "inventory-button";
+        button.onclick = function() { show(type); }
+        inventory.appendChild(button);
+      }
+
+      for (let type of types) {
+        var itemMenu = document.createElement("div");
+        itemMenu.id = type;
+        itemMenu.className = "inventory-tab";
+        for (let idx in that.hero.backpack[type]) {
+          let item = document.createElement("div");
+          item.className = "inventory-item";
+          item.innerHTML = that.hero.backpack[type][idx].name;
+          item.addEventListener('click', (function() {
+            return function() {
+              cleanup();
+              that.selected_action = that.hero.backpack[type].remove(idx);
+              resolver();
+            }
+          })());
+          itemMenu.appendChild(item);
+          itemMenu.appendChild(document.createElement("br"));
+        }
+
+        inventory.appendChild(itemMenu);
+      }
+
+      show(types[0]);
+
+      container.appendChild(inventory);
     }
   }
 

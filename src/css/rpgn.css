@@ -1,3 +1,5 @@
+@import "./combat.css";
+
 .rpgn-parent {
 	width: 100%;
 	height: 100%;
@@ -97,19 +99,6 @@
 	opacity: 0.85;
 }
 /* --- */
-
-.party-element {
-  background-color: rgba(100,50,250, 0.5);
-  display: inline-block;
-}
-.party-element:hover {
-  opacity: 0.85
-}
-.party-icon {
-  height: 2em;
-}
-.party-description {
-}
 
 .loading-progress {
   position: absolute;

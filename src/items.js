@@ -17,12 +17,17 @@ export class ItemDescriptor {
 
 export class WeaponDescriptor extends ItemDescriptor { }
 export class PotionDescriptor extends ItemDescriptor {
-  constructor(owner, value, val_is_absolute) {
+  constructor(owner, name, value, val_is_absolute) {
     // TODO assert that owner is Combat.Character
     super(owner);
 
+    this._name = name;
     this.value = value;
     this.val_is_absolute = Boolean(val_is_absolute);
+  }
+
+  get name() {
+    return this._name;
   }
 
   use(game) {

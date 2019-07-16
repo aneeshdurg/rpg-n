@@ -1,0 +1,47 @@
+.party-element {
+  background-color: rgba(100,50,250, 0.5);
+  display: inline-block;
+}
+
+.party-element:hover {
+  opacity: 0.85
+}
+
+.party-icon {
+  height: 2em;
+}
+
+.party-description {
+}
+
+.inventory {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 50%;
+  height: 50%;
+  margin: auto;
+  padding: 1em;
+	border: 5px solid #0000cc;
+  background: white;
+	overflow: auto;
+}
+
+.inventory-button {
+  width: 25%; /* TODO make this look good */
+  margin-bottom: 1em;
+}
+
+.inventory-tab {
+}
+
+.inventory-item {
+  width: 100%;
+  background-color: rgba(0,50,250, 0.25);
+}
+
+.inventory-item:hover {
+  opacity: 0.8;
+}
