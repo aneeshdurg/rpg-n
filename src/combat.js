@@ -476,6 +476,12 @@ export class RunGame extends ui.Action {
     this.textbox = ui.get_textbox();
   }
 
+  clear_until() {
+    console.log("until cleared!");
+    this.params.until = ((h, e) => true);
+    this.params.on_until_reached = ((h, e) => false);
+  }
+
   static sanitize_params(params) {
     params.allow_run = params.allow_run || false;
     if (params.allow_run) {
@@ -693,13 +699,13 @@ export class RunGame extends ui.Action {
     delete this["enemy_hp"];
   }
 
-  async run() {
+  async setup() {
     if (this.hero instanceof Function) {
-      this.hero = this.hero();
+      this.hero = await this.hero();
     }
 
     if (this.enemy instanceof Function) {
-      this.enemy = this.enemy();
+      this.enemy = await this.enemy();
     }
 
     this.hero.active_sprite = this.hero.hero_sprite;
@@ -713,27 +719,39 @@ export class RunGame extends ui.Action {
       await ui.wait_for_click();
     }
 
+    await this.draw_hero_stats();
+    await this.draw_enemy_stats();
+
+    this.is_hero_turn = true; // TODO allow for first turn to be enemy turn
+    this.setup_done = true;
+  }
+
+  async run() {
+    if (this.combat_done) {
+      throw new Error("Cannot run combat scene because combat has ended");
+    }
+
+    if (!this.setup_done) {
+      await this.setup();
+    }
+
     var hero_actions = this.hero.action_selector(this.enemy);
     var enemy_actions = this.enemy.action_selector(this.hero);
 
     this.ran = false;
     var until_reached = false;
-    var is_hero_turn = true;
-
-    await this.draw_hero_stats();
-    await this.draw_enemy_stats();
 
     while(this.enemy.hp && this.hero.hp && (!this.ran)) {
       // TODO statuseffect animations?
 
-      if (is_hero_turn) {
+      if (this.is_hero_turn) {
         await this.run_turn(this.hero, hero_actions, this.enemy);
       } else {
         await this.run_turn(this.enemy, enemy_actions, this.hero);
       }
 
       await ui.delay(500).wait();
-      is_hero_turn = !is_hero_turn;
+      this.is_hero_turn = !this.is_hero_turn;
       if (!this.params.until()) {
         until_reached = true;
         break;
@@ -741,9 +759,12 @@ export class RunGame extends ui.Action {
     }
 
     if (until_reached) {
+      console.log("quitting bc until reached");
       if (!this.params.on_until_reached(this.game, this.hero, this.enemy))
         return;
     }
+
+    this.combat_done = true;
 
     await this.remove_hero_stats();
     await this.remove_enemy_stats();
