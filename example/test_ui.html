@@ -14,8 +14,7 @@ import Typed from '../src/typed/typed.js';
 
 assets.loadImages({
   base_path: './assets',
-  mario: 'backgrounds/mario_background.png',
-  wasteland: 'backgrounds/creepy_wasteland.jpg',
+  school: 'backgrounds/school.jpg',
   coin: 'coin.png',
 });
 
@@ -57,7 +56,7 @@ var intro = new Scene({
   cleanup: true,
   contents: async function(game) {
     return [
-      ui.setBackground(assets.images.get('mario')),
+      ui.setBackground(assets.images.get('school')),
       ui.playAudio(
         assets.audio.get('happy'), {asynchronous: true, loop: true, fadeIn: true}),
       await ui.draw(

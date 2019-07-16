@@ -7,8 +7,9 @@ import {SSBFighterInteractive, SSBFighter} from './ssb_game.js';
 
 assets.loadImages({
   base_path: './assets',
-  apartment: 'backgrounds/mario_background.png',
-  school: 'backgrounds/creepy_wasteland.jpg',
+  apartment: 'backgrounds/apartment.jpg',
+  school: 'backgrounds/school.jpg',
+  battlefield: 'backgrounds/battlefield.jpg',
   coin: 'coin.png',
 });
 

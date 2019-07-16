@@ -19,6 +19,7 @@ export var play_smash = new Scene({
         member = await Combat.select_party_member(game, ui.textbox, {});
       }),
       s("Awesome, let's fight!"),
+      ui.setBackground(assets.images.get('battlefield')),
       new Action(async function() {
         await Draw.animate(Sonic.sprite, "zoomOut", {noCancel: true}).run();
         Sonic.sprite.remove();

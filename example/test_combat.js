@@ -31,7 +31,7 @@ var game = new Game(Me);
 
 assets.loadImages({
   base_path: './assets',
-  wasteland: 'backgrounds/creepy_wasteland.jpg',
+  wasteland: 'backgrounds/battlefield.jpg',
   fist: 'combat_demo/fist.png',
   fire: 'combat_demo/fire.png',
 });
