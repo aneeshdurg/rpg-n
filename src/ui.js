@@ -1,8 +1,8 @@
 // TODO have multiple 'displays' that can be switched between
-
 import Typed from './typed/typed.js';
 
 import * as Actions from './actions.js';
+import {set_style} from './utils.js';
 import {
   Action,
   AsynchronousAction,
@@ -273,12 +273,12 @@ export class UI {
 
   menu() {
     var options = arguments;
-    return new Menu(options);
+    return new Menu(options, this);
   }
 
   choice() {
     var choices = arguments;
-    return new Choice(choices);
+    return new Choice(choices, this);
   }
 
   delay(val) {
@@ -588,12 +588,6 @@ export class Draw {
     return animation_done;
   }
 
-  static set_style(element, style) {
-    for (var key of Object.keys(style)) {
-      element.style[key] = style[key];
-    }
-  }
-
   // TODO animate from point a to point b
   // ???
 
@@ -606,9 +600,9 @@ export class Draw {
       element.remove();
       element.style.display = "";
 
-      Draw.set_style(element, position);
+      set_style(element, position);
       if (img_params)
-        Draw.set_style(element, img_params);
+        set_style(element, img_params);
 
       parent_el.appendChild(element);
 

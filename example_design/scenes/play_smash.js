@@ -1,10 +1,9 @@
-import * as ui from '../../src/ui.js';
 import * as Positions from '../../src/positions.js';
 import * as Combat from '../../src/combat.js';
 
 import {assets} from '../../src/assets.js';
-import {Scene} from '../../src/ui.js';
-
+import {ui, Draw, Scene} from '../../src/ui.js';
+import {Action} from '../../src/actions.js';
 import {game, Me, me, Sonic, s} from '../setup.js';
 
 export var play_smash = new Scene({
@@ -14,14 +13,14 @@ export var play_smash = new Scene({
     var member = null;
     return [
       ui.setBackground(assets.images.get('apartment')),
-      ui.Draw.draw(Sonic.sprite, Positions.Left),
+      ui.draw(Sonic.sprite, Positions.Left),
       s("Select your fighter!"),
-      new ui.Action(async function() {
-        member = await Combat.select_party_member(game, ui.get_textbox(), {});
+      new Action(async function() {
+        member = await Combat.select_party_member(game, ui.textbox, {});
       }),
       s("Awesome, let's fight!"),
-      new ui.Action(async function() {
-        await ui.Draw.animate(Sonic.sprite, "zoomOut", {noCancel: true}).run();
+      new Action(async function() {
+        await Draw.animate(Sonic.sprite, "zoomOut", {noCancel: true}).run();
         Sonic.sprite.remove();
       }),
       new Combat.RunGame(game, {

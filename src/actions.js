@@ -1,3 +1,5 @@
+import {set_style} from './utils.js';
+
 export const EXECUTED_SCENE = Symbol('EXECUTED_SCENE');
 export const NO_ACTION = Symbol('NO_ACTION');
 export const UNREACHABLE = Symbol('UNREACHABLE');
@@ -62,7 +64,7 @@ export class Menu extends Action {
         var b = document.createElement('button');
         b.className = "menuButton";
         if (option.length >= 2) {
-          Draw.set_style(b, option[1]);
+          set_style(b, option[1]);
         }
 
         b.innerHTML = option[0];
@@ -95,7 +97,7 @@ export class ChoiceResult {
 }
 
 export class Choice extends Action {
-  constructor(choices) {
+  constructor(choices, ui) {
     super(async function() {
       var resolver = null;
       var choice_chosen = new Promise((r) => { resolver = r; });
@@ -110,7 +112,7 @@ export class Choice extends Action {
         var b = document.createElement('button');
         b.className = "choiceButton";
         if (choice.length >= 3) {
-          Draw.set_style(b, choice[2]);
+          set_style(b, choice[2]);
         }
 
         b.innerHTML = choice[0];
