@@ -30,8 +30,6 @@ export var play_smash = new Scene({
           return member;
         },
         enemy: Sonic,
-        // until: (() => false), TODO create a way to "resume" a battle that's
-        // reached the todo phase
         on_win: (game, hero, enemy) => {
           console.log("won!");
           hero.exp += enemy.level * 5;

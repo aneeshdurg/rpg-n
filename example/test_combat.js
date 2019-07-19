@@ -80,16 +80,7 @@ var fight_scene = new UI.Scene({
       }),
       ui.exec((game) => {
         if (game.flags.get('victory') >= 0) {
-          if (game.flags.get('victory') == 1) {
-            var new_dragon = Combat.InteractiveCharacter.from_non_interactive(dragon)
-            new_dragon.hp = new_dragon.max_hp;
-            new_dragon.status_effects = [];
-            Me.party.push(new_dragon);
-            // TODO fix the following text to accurately reflect if the dragon
-            // joined the party
-          }
-          return ui.sequence(
-            new_dragon.name + " joined the party!",
+          var events = [
             "Continue adventuring?",
             ui.choice(
               ["yeet", 'battle_knight'],
@@ -97,7 +88,16 @@ var fight_scene = new UI.Scene({
             ),
             ui.clearScene(500),
             "Good bye!",
-          );
+          ];
+
+          if (game.flags.get('victory') == 1) {
+            var new_dragon = Combat.InteractiveCharacter.from_non_interactive(dragon)
+            new_dragon.hp = new_dragon.max_hp;
+            new_dragon.status_effects = [];
+            Me.party.push(new_dragon);
+            events.unshift(new_dragon.name + " joined the party!");
+          }
+          return ui.sequence.apply(ui, events);
         }
         return ui.sequence(
           "Lol u lost",
