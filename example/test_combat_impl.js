@@ -148,6 +148,34 @@ export class Punch extends ExampleMove {
   }
 }
 
+export class Heal extends ExampleMove {
+  constructor(user) {
+    super(user, ['magic'], null);
+    this.fight_level = 0;
+    this.magic_level = 1;
+    this.critical_chance = 0.5;
+  }
+
+  async use_move(victim) {
+    //this.sprite = assets.images.get('fist');
+    //this.sfx = assets.audio.get('punch');
+
+    var damage = this.user.level * (this.magic_level * 15 + this.fight_level);
+    var description = [];
+
+    if (Math.random() < this.critical_chance) {
+      damage += this.user.level * (this.magic_level * 10);
+    }
+    description.push("Heal restored " + damage + " hp!");
+
+    return new Combat.MoveResult(
+      new Combat.Damage(this.types, -1 * damage),
+      new Combat.Damage(this.types, 0),
+      description,
+    );
+  }
+}
+
 export class Fireball extends ExampleMove {
   constructor(user) {
     super(user, ['magic'], null);
@@ -222,7 +250,22 @@ export class Knight extends Combat.InteractiveCharacter {
 
   set exp(amt) {
     this._exp = amt;
-    this.level = Math.floor(Math.log10(amt)) + 2;
+    this.level = Math.floor(Math.log10(this._exp)) + 2;
+  }
+
+  get level() {
+    return super.level;
+  }
+
+  set level(x) {
+    super.level = x;
+    if (x > 2) {
+      if (this.moves.length < 2) {
+        this.moves.push(new Heal(this));
+      }
+    } else {
+      this.moves.splice(1);
+    }
   }
 }
 

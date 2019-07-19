@@ -15,6 +15,7 @@ import {
   Sequence,
 } from './actions.js';
 import {History, HistoryItem} from './game.js';
+import {config} from './config.js';
 
 export class UI {
   constructor() {
