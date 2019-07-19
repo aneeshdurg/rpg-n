@@ -138,13 +138,13 @@ var credits = new Scene({
   await assets.wait_for_load();
 
   console.log("Starting game");
-  ui.initialize(document.body, game, [
+  game.initialize(document.body, [
     splashscreen,
     intro,
     doing_good,
     credits,
   ]);
-  splashscreen.run(game);
+  game.run();
 })();
 
 

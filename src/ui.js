@@ -39,6 +39,10 @@ export class UI {
     this.scene_map = new Map();
   }
 
+  get_scene_from_name(name) {
+    return this.scene_map.get(name);
+  }
+
   initialize(parent, game, scene_list) {
     var that = this;
 

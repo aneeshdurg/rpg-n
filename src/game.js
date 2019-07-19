@@ -2,6 +2,8 @@ import * as items from './items.js';
 import * as characters from './characters.js';
 import {ui} from './ui.js';
 
+const LOAD_FROM_STORAGE = "__game_load";
+
 export class Game {
   constructor(player) {
     if (!(player instanceof characters.Player))
@@ -14,8 +16,39 @@ export class Game {
     this.menu_selections = []; // TODO add this to the save
   }
 
-  static get_history_keys(key) {
-     var base = "history" + (key ? "." + key : "");
+  initialize(parent_el, scenes) {
+    ui.initialize(parent_el, this, scenes);
+    var load_key = localStorage.getItem(LOAD_FROM_STORAGE);
+    if (typeof(load_key) == 'string') {
+      console.log("Loading with '" + load_key + "'");
+      this._load(load_key);
+      localStorage.removeItem(LOAD_FROM_STORAGE);
+      var last_item = this.history.slice(-1)[0];
+      this.entrypoint = ui.get_scene_from_name(last_item.scene_name);
+      // TODO when loading scene load sprites and stuff also when jumping to
+      // some idx
+      //
+      // also prevent scenes from having cleanup: false?
+      // this.entrypoint_idx = last_item.idx;
+      this.entrypoint_idx = 0;
+    } else {
+      this.entrypoint = scenes[0];
+      this.entrypoint_idx = 0;
+    }
+  }
+
+  async run() {
+    // TODO load a splashscreen before run to get user interaction to enable
+    // autoplay
+    if (!this.entrypoint) {
+      throw new Error("Game not initialized!");
+    }
+
+    await this.entrypoint.run(this, this.entrypoint_idx);
+  }
+
+  static get_load_keys(key) {
+     var base = "load" + (key ? "." + key : "");
     return {
       base: base,
       history: base + ":history",
@@ -29,6 +62,7 @@ export class Game {
     var that = this;
 
     this._container = document.createElement("div");
+
     this._container.className = "pause-element";
     this._container.onclick = function(e) {
       if (e.target == that._container) {
@@ -66,16 +100,26 @@ export class Game {
 
   pause_handler(parent) { }
 
-  load(key) {
-    key = Game.get_history_keys(key);
-    var history = localStorage.getItem(key.base);
+  _load(key) {
+    key = Game.get_load_keys(key);
+    var history = localStorage.getItem(key.history);
     if (!history) {
-      throw new Error("Expected to find history for key '" + key.base + "'");
+      throw new Error("Expected to find history for key '" + key.history + "'");
     }
 
     this.history = History.from_string(history);
-    // TODO execute jump in ui state
-    // this requires giving the game control over executing scenes
+    while (true) {
+      var last = this.history.pop();
+      if (last.type == HistoryItem.types.scene_progress) {
+        this.history.push(last);
+        break;
+      }
+    }
+  }
+
+  load(key) {
+    localStorage.setItem(LOAD_FROM_STORAGE, key);
+    location.reload(); // TODO make it so that the game can be loaded without reloading the game
   }
 
   save(key) {
@@ -83,7 +127,7 @@ export class Game {
     if (key.indexOf(":") >= 0) {
       throw new Error("Cannot have ':' in key");
     }
-    key = Game.get_history_keys(key);
+    key = Game.get_load_keys(key);
     // generate save state and write to localstorage under key
     localStorage.setItem(key.base, "true");
     localStorage.setItem(key.history, this.history.to_string());

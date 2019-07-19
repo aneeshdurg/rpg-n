@@ -113,10 +113,10 @@ var fight_scene = new UI.Scene({
   await knight.wait_for_load();
   await assets.wait_for_load();
 
-  ui.initialize(document.body, game, [
+  game.initialize(document.body, [
     fight_scene,
   ]);
-  fight_scene.run(game);
+  game.run();
 })();
 
 

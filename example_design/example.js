@@ -27,10 +27,10 @@ window.game = game;
   await Sonic.wait_for_load();
   await assets.wait_for_load();
 
-  ui.initialize(document.body, game, [
+  game.initialize(document.body, [
     splashscreen,
     entry,
     play_smash,
   ]);
-  splashscreen.run(game);
+  game.run();
 })();
