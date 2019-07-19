@@ -2,6 +2,8 @@
 //
 // TODO create elements that allow text to be displayed on the display instead
 // of the textbox
+//
+// TODO make ui use the typespeed set here
 
 import {config} from './config.js';
 

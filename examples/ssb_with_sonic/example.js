@@ -7,7 +7,8 @@ import {ui, Scene} from '../src/ui.js';
 
 import {game, Me, me, Sonic, s} from './setup.js';
 import {entry} from './scenes/intro.js';
-import {play_smash} from './scenes/play_smash.js';
+import {play_smash, ssb_win, ssb_lose} from './scenes/play_smash.js';
+import {happy_ending, bad_ending, credits} from './scenes/endings.js';
 
 var splashscreen = new Scene({
     name: 'splashscreen',
@@ -21,6 +22,7 @@ var splashscreen = new Scene({
 });
 
 window.game = game;
+window.Sonic = Sonic;
 
 (async function() {
   await Sonic.wait_for_load();
@@ -30,6 +32,11 @@ window.game = game;
     splashscreen,
     entry,
     play_smash,
+    ssb_win,
+    ssb_lose,
+    happy_ending,
+    bad_ending,
+    credits,
   ]);
   game.run();
 })();

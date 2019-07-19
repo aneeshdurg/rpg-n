@@ -33,7 +33,7 @@ export var entry = new Scene({
         var last_choice = game.history.filter(h => h.type == HistoryItem.types.choice).slice(-1)[0];
         var was_rude = last_choice.choice_id == 3;
         if (was_rude) {
-          game.flags.set('sonic_suspicious', 1);
+          game.flags.set('sonic_friends', -1);
           return ui.sequence(
             "I guess I have nothing better to do...",
             Actions.CLEAR_TEXTBOX,

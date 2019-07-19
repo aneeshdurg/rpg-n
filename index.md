@@ -7,8 +7,8 @@ RPG-N is a visual novel engine that has some RPG elements.
 
 Below are some demos of working stuff
 
-[Full featured demo (WIP)](./example_design/example.html)
+[Full featured demo (WIP)](./examples/ssb_with_sonic/example.html)
 
-[Combat demo](./example/test_combat.html)
+[Combat demo](./examples/test_combat.html)
 
-[Basic UI demo](./example/test_ui.html)
+[Basic UI demo](./examples/test_ui.html)

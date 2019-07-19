@@ -11,6 +11,7 @@ assets.loadImages({
   school: 'backgrounds/school.jpg',
   battlefield: 'backgrounds/battlefield.jpg',
   coin: 'coin.png',
+  knife: 'knife.png',
 });
 
 assets.loadAudio({
