@@ -1,9 +1,9 @@
-import * as Positions from '../../src/positions.js';
-import * as Combat from '../../src/combat.js';
+import * as Positions from '../../../src/positions.js';
+import * as Combat from '../../../src/combat.js';
 
-import {assets} from '../../src/assets.js';
-import {ui, Draw, Scene} from '../../src/ui.js';
-import {Action} from '../../src/actions.js';
+import {assets} from '../../../src/assets.js';
+import {ui, Draw, Scene} from '../../../src/ui.js';
+import {Action} from '../../../src/actions.js';
 import {game, Me, me, Sonic, s} from '../setup.js';
 
 export var happy_ending = new Scene ({

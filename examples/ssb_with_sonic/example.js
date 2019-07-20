@@ -1,9 +1,9 @@
-import * as Combat from '../src/combat.js';
+import * as Combat from '../../src/combat.js';
 
-import {assets} from '../src/assets.js';
-import {Player} from '../src/characters.js';
-import {Game} from '../src/game.js';
-import {ui, Scene} from '../src/ui.js';
+import {assets} from '../../src/assets.js';
+import {Player} from '../../src/characters.js';
+import {Game} from '../../src/game.js';
+import {ui, Scene} from '../../src/ui.js';
 
 import {game, Me, me, Sonic, s} from './setup.js';
 import {entry} from './scenes/intro.js';

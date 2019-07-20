@@ -1,10 +1,10 @@
-import * as Positions from '../../src/positions.js';
-import * as Actions from '../../src/actions.js';
+import * as Positions from '../../../src/positions.js';
+import * as Actions from '../../../src/actions.js';
 
-import {AsynchronousAction, Action} from '../../src/actions.js';
-import {assets} from '../../src/assets.js';
-import {ui, Draw, Scene} from '../../src/ui.js';
-import {HistoryItem} from '../../src/game.js';
+import {AsynchronousAction, Action} from '../../../src/actions.js';
+import {assets} from '../../../src/assets.js';
+import {ui, Draw, Scene} from '../../../src/ui.js';
+import {HistoryItem} from '../../../src/game.js';
 
 import {game, Me, me, Sonic, s} from '../setup.js';
 import {SSBOrb} from '../ssb_game.js';

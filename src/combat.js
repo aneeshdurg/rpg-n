@@ -288,6 +288,7 @@ export class UIActionSelector extends ActionSelector {
   }
 
   gen_move_buttons() {
+    // TODO only render move buttons after some 'attack' button is clicked on.
     this.move_buttons = [];
 
     for (var move of this.hero.moves) {
