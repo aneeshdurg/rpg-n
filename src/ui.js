@@ -40,27 +40,26 @@ export class UI {
     this.scene_map = new Map();
   }
 
-  get_scene_from_name(name) {
-    return this.scene_map.get(name);
-  }
-
-  initialize(parent, game, scene_list) {
-    var that = this;
-
-    parent.style.MozUserSelect="none";
-    parent.style.userSelect="none"
-
+  _setup_parent(parent) {
     this.parent = document.createElement('div');
     this.parent.classList.add("rpgn-parent");
     parent.appendChild(this.parent);
+  }
 
+  _setup_main_display() {
     this.main_display = document.createElement('div');
     this.main_display.classList.add("rpgn-main_display");
     this.main_display.onclick = this.toggle_textbox.bind(this);
+    this.parent.appendChild(this.main_display);
+  }
 
+  _setup_secondary_display() {
     this.secondary_display = document.createElement('div');
     this.secondary_display.classList.add("rpgn-secondary_display");
+  }
 
+  _setup_textbox() {
+    var that = this;
     this.textbox = document.createElement('div');
     this.textbox.classList.add("rpgn-textbox");
     function register_click_event(e) {
@@ -81,21 +80,15 @@ export class UI {
       }
     }
     this.textbox.onclick = register_click_event;
-
-    this.parent.appendChild(this.main_display);
     this.parent.appendChild(this.textbox);
+  }
 
-    for (var scene of scene_list) {
-      if (this.scene_map.get(scene.name)) {
-        throw new Error("Scene name '" + scene.name + "' is already taken! Please use unique names!");
-      }
-      this.scene_map.set(scene.name, scene);
-    }
-
+  _setup_pause(game) {
+    var that = this;
     this.pause_menu = document.createElement("div");
     this.pause_menu.classList.add("pause");
     this.pause_menu.onclick = function(e) {
-      if (e.target == this.pause_menu) {
+      if (e.target == that.pause_menu) {
         that.remove_pause();
       }
     }
@@ -105,10 +98,27 @@ export class UI {
     this.pause_button.innerHTML = "Pause";
     this.pause_button.onclick = function() { that.summon_pause(game); };
     this.pause_button.classList.add("pause-button");
-
     this.parent.appendChild(this.pause_button);
   }
 
+  initialize(parent, game, scene_list) {
+    this._setup_parent(parent);
+    this._setup_main_display();
+    this._setup_secondary_display();
+    this._setup_textbox();
+    this._setup_pause(game);
+
+    for (var scene of scene_list) {
+      if (this.scene_map.get(scene.name)) {
+        throw new Error("Scene name '" + scene.name + "' is already taken! Please use unique names!");
+      }
+      this.scene_map.set(scene.name, scene);
+    }
+  }
+
+  get_scene_from_name(name) {
+    return this.scene_map.get(name);
+  }
 
   activate_secondary_display() {
     // clear display
@@ -464,7 +474,7 @@ export class Scene {
     } else if (action instanceof Delay) {
       return await action.wait();
     } else if (action instanceof ExecAction) {
-      return this.handle_all(game, action.get_action(game), idx);
+      return this.handle_all(game, action.run(game), idx);
     } else if (action instanceof Action) {
       return await this.handle_action(game, action, idx);
     } else if (typeof(action) == 'string') {
@@ -505,13 +515,6 @@ export class Scene {
     var contents = await this.contents(game);
     // TODO validate that contents is array of Actions or strings
     return this._scene(game, contents, idx);
-  }
-}
-
-export class SpriteThunk extends Action {
-  constructor(img, callback) {
-    super(callback);
-    this.element = img;
   }
 }
 
@@ -594,7 +597,6 @@ export class Draw {
   }
 
   // TODO animate from point a to point b
-  // ???
 
   /**
    * img_params, animation, animation_params are optional
@@ -614,7 +616,7 @@ export class Draw {
       if (animation)
         await Draw.do_animation(element, animation, animation_params);
     }
-    return new SpriteThunk(element, callback);
+    return new Action(callback);
   }
 
   static async remove(element) {

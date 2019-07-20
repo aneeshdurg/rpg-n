@@ -1,5 +1,19 @@
+/**
+    _        _   _
+   / \   ___| |_(_) ___  _ __  ___
+  / _ \ / __| __| |/ _ \| '_ \/ __|
+ / ___ \ (__| |_| | (_) | | | \__ \
+/_/   \_\___|\__|_|\___/|_| |_|___/
+figlet: Actions
+
+This module defines "actions" that a game might use
+*/
+
 import {set_style} from './utils.js';
 
+/**
+ * These symbols are actions that must be implemented by the game engine
+ */
 export const EXECUTED_SCENE = Symbol('EXECUTED_SCENE');
 export const NO_ACTION = Symbol('NO_ACTION');
 export const UNREACHABLE = Symbol('UNREACHABLE');
@@ -7,16 +21,6 @@ export const WAIT_FOR_CLICK = Symbol('WAIT_FOR_CLICK');
 export const HIDE_TEXTBOX = Symbol('HIDE_TEXTBOX');
 export const SHOW_TEXTBOX = Symbol('SHOW_TEXTBOX');
 export const CLEAR_TEXTBOX = Symbol('CLEAR_TEXTBOX');
-
-export class ExecAction {
-  constructor(callback) {
-    this.callback = callback;
-  }
-
-  get_action(game) {
-    return this.callback(game);
-  }
-}
 
 // A class representing an action that a scene should evaluate.
 export class Action {
@@ -27,15 +31,18 @@ export class Action {
     this.callback = callback;
   }
 
-  // TODO think about chaining events and text
-  //and(next_action) {
-  //  if (next_action instanceof Action || typeof(next_action) == 'string') {
-  //    this.and = next_action;
-  //  }
-  //}
-
   run() {
     return this.callback();
+  }
+}
+
+// No different from a normal action but is just a tag that this action prefers not to be waited on
+export class AsynchronousAction extends Action {}
+
+// An action that requires game state to run
+export class ExecAction extends Action{
+  run(game) {
+    return this.callback(game);
   }
 }
 
@@ -46,11 +53,8 @@ export class Jump extends Action {
   }
 }
 
-
-
+// Present a menu to the user and wait for a selection to be made
 export class Menu extends Action {
-  // TODO block until user makes a selection and then return that selection back
-  // to the game?
   constructor(options, ui) {
     super(async function() {
       var resolver = null;
@@ -86,9 +90,6 @@ export class Menu extends Action {
   }
 }
 
-// No different from a normal action but is just a tag that this action prefers not to be waited on
-export class AsynchronousAction extends Action {}
-
 export class ChoiceResult {
   constructor(scene_name, id) {
     this.scene_name = scene_name;
@@ -96,6 +97,8 @@ export class ChoiceResult {
   }
 }
 
+// A choice that a user needs to make. Similar to menu but more
+// structured/restrictive
 export class Choice extends Action {
   constructor(choices, ui) {
     super(async function() {
@@ -135,6 +138,7 @@ export class Choice extends Action {
   }
 }
 
+// An action that 'sleeps'
 export class Delay extends Action {
   constructor(delay) {
     super(() => {});
@@ -162,6 +166,7 @@ export class Delay extends Action {
   }
 }
 
+// A class that holds a sequence of actions to be executed
 export class Sequence {
   constructor(args) {
     // check arguments types
