@@ -1,4 +1,4 @@
-import {Action} from './actions.js';
+import {Action, TabbedMenu} from './actions.js';
 import {ui} from './ui.js';
 
 import * as UI from './ui.js';
@@ -354,75 +354,30 @@ export class UIActionSelector extends ActionSelector {
 
   gen_items_menu(resolver) { // TODO turn Menu into this table
     var that = this;
-    return function() {
-      var secondary = ui.activate_secondary_display();
+    var types = {"potions":[], "weapons":[], "equipment":[], "misc":[]};
 
-      var container = document.createElement("div");
+    for (let type of Object.getOwnPropertyNames(types)) {
+      for (let idx in that.hero.backpack[type]) {
+        let item = document.createElement("div");
+        item.className = "inventory-item nes-btn";
+        item.innerHTML = that.hero.backpack[type][idx].name;
 
-      secondary.appendChild(container);
-      container.style.width = "100%";
-      container.style.height = "100%";
-
-      function cleanup() {
-        container.remove();
-        ui.deactivate_secondary_display();
-      }
-      container.onclick = function(e) {
-        if (e.target == container)
-          cleanup();
-      }
-
-      var inventory = document.createElement("div");
-      inventory.classList.add("inventory", "nes-container", "is-rounded");
-      inventory.style.margin = "auto";
-
-      var types = ["potions", "weapons", "equipment", "misc"];
-
-      function show(name) {
-        let elements = inventory.querySelectorAll(".inventory-tab");
-        for (let e of elements) {
-          if (e.id != name) {
-            e.style.display = "none";
-          } else {
-            e.style.display = "";
-          }
-        }
-      }
-
-      for (let type of types) {
-        let button = document.createElement("button");
-        button.innerHTML = type;
-        button.className = "inventory-button nes-btn";
-        button.onclick = function() { show(type); }
-        inventory.appendChild(button);
-      }
-
-      for (let type of types) {
-        var itemMenu = document.createElement("div");
-        itemMenu.id = type;
-        itemMenu.className = "inventory-tab";
-        for (let idx in that.hero.backpack[type]) {
-          let item = document.createElement("div");
-          item.className = "inventory-item nes-btn";
-          item.innerHTML = that.hero.backpack[type][idx].name;
-          item.addEventListener('click', (function() {
+        let callback = (function() {
             return function() {
-              cleanup();
               that.selected_action = that.hero.backpack[type].remove(idx);
               resolver();
             }
-          })());
-          itemMenu.appendChild(item);
-          itemMenu.appendChild(document.createElement("br"));
-        }
+        })();
 
-        inventory.appendChild(itemMenu);
+        types[type].push({
+          element: item,
+          callback: callback,
+        });
       }
-
-      show(types[0]); // TODO apply clicked style to the tab header
-
-      container.appendChild(inventory);
     }
+
+    var menu = new TabbedMenu(ui, types, true);
+    return menu;
   }
 
   async _get_action() {
@@ -440,7 +395,10 @@ export class UIActionSelector extends ActionSelector {
     var move_handler = this.gen_moves_menu(resolver);
     this.attack.addEventListener('click', move_handler);
 
-    var item_handler = this.gen_items_menu(resolver);
+    var item_menu = this.gen_items_menu(resolver);
+    var item_handler = function() {
+      item_menu.run();
+    };
     this.items.addEventListener('click', item_handler);
 
     await action_done;
