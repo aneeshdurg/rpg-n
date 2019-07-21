@@ -812,6 +812,7 @@ export async function select_party_member(game, parent, params) {
   list.className = "party-list";
   container.appendChild(list);
 
+  // TODO keyboard support
   for (var member of game.player.party) {
     if (!filter(member)) {
       continue;

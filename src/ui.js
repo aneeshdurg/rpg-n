@@ -2,7 +2,7 @@
 import Typed from './typed/typed.js';
 
 import * as Actions from './actions.js';
-import {set_style} from './utils.js';
+import {set_style, eventFire} from './utils.js';
 import {
   Action,
   AsynchronousAction,
@@ -16,6 +16,8 @@ import {
 } from './actions.js';
 import {History, HistoryItem} from './game.js';
 import {config} from './config.js';
+
+import './mousetrap/mousetrap.min.js';
 
 export class UI {
   constructor() {
@@ -93,12 +95,41 @@ export class UI {
       }
     }
     game.setup_pause_menu(this.pause_menu);
+    this.pause_menu.style.display = "none";
+    this.parent.appendChild(this.pause_menu);
 
     this.pause_button = document.createElement("button");
-    this.pause_button.innerHTML = "Pause";
+    this.pause_button.innerHTML = "(p)ause";
     this.pause_button.onclick = function() { that.summon_pause(game); };
     this.pause_button.classList.add("pause-button");
     this.parent.appendChild(this.pause_button);
+
+  }
+
+  _setup_keybindings(game) {
+    var that = this;
+    // TODO make a wrapper around Mousetrap to allow things like
+    // having a "stack" of functions that can be used for 'context aware' actions
+
+    Mousetrap.bind('p', function() {
+      if (that.pause_menu.style.display == "none")
+        that.summon_pause(game);
+      else
+        that.remove_pause();
+    });
+
+    Mousetrap.bind('t', function() {
+      that.toggle_textbox();
+    });
+
+    // Mousetrap.bind('s', function() {
+    //   game.save();
+    // });
+
+    Mousetrap.bind('space', function() {
+      console.log("click!");
+      eventFire(that.textbox, 'click');
+    });
   }
 
   initialize(parent, game, scene_list) {
@@ -107,6 +138,8 @@ export class UI {
     this._setup_secondary_display();
     this._setup_textbox();
     this._setup_pause(game);
+
+    this._setup_keybindings(game);
 
     for (var scene of scene_list) {
       if (this.scene_map.get(scene.name)) {
@@ -150,12 +183,14 @@ export class UI {
   remove_pause() {
     while(this.pause_menu.paused_music.length)
       this.playAudio(this.pause_menu.paused_music.pop(), {noReset: true, asynchronous: true}).run();
-    this.pause_menu.remove();
+    this.pause_menu.style.display = "none";
+    this.pause_button.style.display = "";
   }
 
   async summon_pause(game) {
-    this.parent.appendChild(this.pause_menu);
+    this.pause_menu.style.display = "";
     this.pause_menu.paused_music = await pause_all_audio();
+    this.pause_button.style.display = "none";
     game.pause_handler(this.pause_menu);
   }
 
