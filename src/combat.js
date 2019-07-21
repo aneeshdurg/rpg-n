@@ -281,22 +281,61 @@ export class UIActionSelector extends ActionSelector {
     this.run.innerText = "run";
     this.actions.appendChild(this.run);
 
+    this.attack = document.createElement("button");
+    this.attack.innerText = "attack";
+    this.actions.appendChild(this.attack);
+
     this.items = document.createElement("button");
     this.items.innerText = "items";
     this.actions.appendChild(this.items);
 
   }
 
-  gen_move_buttons() {
-    // TODO only render move buttons after some 'attack' button is clicked on.
-    this.move_buttons = [];
+  gen_moves_menu(resolver) {
+    var that = this;
+    return function() {
+      var secondary = ui.activate_secondary_display();
 
-    for (var move of this.hero.moves) {
-      var move_btn = document.createElement("button");
-      move_btn.innerText = move.name;
-      move_btn.move = move;
-      this.move_buttons.push(move_btn);
-      this.actions.appendChild(move_btn);
+      var container = document.createElement("div");
+
+      secondary.appendChild(container);
+      container.style.width = "100%";
+      container.style.height = "100%";
+
+      var inventory = document.createElement("div");
+      inventory.className = "inventory";
+
+      function cleanup() {
+        container.remove();
+        ui.deactivate_secondary_display();
+      }
+
+      container.onclick = function(e) {
+        if (e.target == container)
+          cleanup();
+      }
+
+      var move_buttons = [];
+
+      for (var move of that.hero.moves) {
+        var move_btn = document.createElement("button");
+        move_btn.className = "inventory-item";
+
+        move_btn.innerText = move.name;
+        move_btn.move = move;
+        move_buttons.push(move_btn);
+
+        inventory.appendChild(move_btn);
+      }
+
+      function click_handler(e) {
+        cleanup();
+        that.selected_action = e.target.move;
+        resolver();
+      }
+      move_buttons.map((e) => { e.addEventListener('click', click_handler); });
+
+      container.appendChild(inventory);
     }
   }
 
@@ -381,29 +420,19 @@ export class UIActionSelector extends ActionSelector {
     var action_done = new Promise((r) => { resolver = r; });
 
     var that = this;
-    var click_handler = function(e) {
-      resolver();
-      if (e.target.move)
-        that.selected_action = e.target.move;
-      else
-        that.selected_action = e.target.innerText;
-    };
+    var run_handler = function() { that.selected_action = "run"; resolver(); };
+    this.run.addEventListener('click', run_handler);
 
-    this.gen_move_buttons();
-    this.move_buttons.map((e) => { e.addEventListener('click', click_handler); });
-
-    this.run.addEventListener('click', click_handler);
+    var move_handler = this.gen_moves_menu(resolver);
+    this.attack.addEventListener('click', move_handler);
 
     var item_handler = this.gen_items_menu(resolver);
     this.items.addEventListener('click', item_handler);
 
     await action_done;
 
-    // TODO refactor move_buttons stuff
-    this.move_buttons.map((e) => { e.removeEventListener('click', click_handler); e.remove(); });
-    this.move_buttons = [];
-
-    this.run.removeEventListener('click', click_handler);
+    this.run.removeEventListener('click', run_handler);
+    this.attack.removeEventListener('click', move_handler);
     this.items.removeEventListener('click', item_handler);
 
     this.actions.remove();
@@ -786,6 +815,7 @@ export class RunGame extends Action {
 }
 
 // TODO finish this!!!
+// TODO merge this with Menu or something?
 // params:
 //  allowCancel
 //  filter

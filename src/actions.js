@@ -55,6 +55,8 @@ export class Jump extends Action {
 
 // Present a menu to the user and wait for a selection to be made
 export class Menu extends Action {
+  // TODO consider taking in a list of elements instead, or create a parent
+  // class for this that does that
   constructor(options, ui) {
     super(async function() {
       var resolver = null;
