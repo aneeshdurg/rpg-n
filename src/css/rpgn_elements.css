@@ -44,7 +44,6 @@
 	border: 5px solid #0000cc;
   background: white;
   */
-	overflow: auto;
 }
 
 .rpgn-textbox {
@@ -52,6 +51,5 @@
 	height: 90%;
   background: white;
   padding: 1em;
+	overflow: auto;
 }
-
-
