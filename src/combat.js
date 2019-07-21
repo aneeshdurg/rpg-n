@@ -596,51 +596,29 @@ export class RunGame extends Action {
     var style = window.getComputedStyle(character.active_sprite);
 
     var hp_obj = {};
-    hp_obj.canvas = document.createElement('canvas');
-    character.active_sprite.parentElement.appendChild(hp_obj.canvas);
+    hp_obj.progress = document.createElement('progress');
+    hp_obj.progress.classList.add("nes-progress", "is-success");
+    hp_obj.progress.max = character.max_hp;
+    character.active_sprite.parentElement.appendChild(hp_obj.progress);
 
-    hp_obj.canvas.style.position = "absolute";
+    hp_obj.progress.style.position = "absolute";
     if (is_below) {
-      hp_obj.canvas.style.bottom = this._to_num(style.bottom) + this._to_num(style.marginBottom);
+      hp_obj.progress.style.bottom = this._to_num(style.bottom) + this._to_num(style.marginBottom) + 5;
     } else {
-      hp_obj.canvas.style.top = this._to_num(style.top) + this._to_num(style.marginTop);
+      hp_obj.progress.style.top = this._to_num(style.top) + this._to_num(style.marginTop) - 5;
     }
-    hp_obj.canvas.style.left = this._to_num(style.left) + this._to_num(style.marginLeft);
-    hp_obj.canvas.width = this._to_num(style.width);
-    hp_obj.canvas.height = 20; // ?
+    hp_obj.progress.style.left = this._to_num(style.left) + this._to_num(style.marginLeft) + this._to_num(style.width) / 4;
+    hp_obj.progress.style.width = this._to_num(style.width) / 2;
+    hp_obj.progress.style.height = 20; // ?
 
-    hp_obj.ctx = hp_obj.canvas.getContext('2d');
-    hp_obj.width = hp_obj.canvas.width / 2;
-    hp_obj.height = hp_obj.canvas.height;
+    //hp_obj.width = hp_obj.canvas.width / 2;
+    //hp_obj.height = hp_obj.canvas.height;
 
-    hp_obj.outer_x = (hp_obj.canvas.width / 2) - (hp_obj.width / 2);
-    hp_obj.outer_y = (hp_obj.canvas.height / 2) - (hp_obj.height / 2);
-
-    hp_obj.border = hp_obj.height * 0.1;
-
-    hp_obj.inner_x = hp_obj.outer_x + hp_obj.border;
-    hp_obj.inner_y = hp_obj.outer_y + hp_obj.border;
-
-    hp_obj.inner_width = hp_obj.width - 2 * hp_obj.border;
-    hp_obj.inner_height = hp_obj.canvas.height - 2 * hp_obj.border;
-
-    hp_obj.font_size = hp_obj.inner_height - 2;
-    hp_obj.font_size = hp_obj.font_size <= 0 ? hp_obj.inner_height : hp_obj.font_size;
-    hp_obj.ctx.font = hp_obj.font_size + "px Arial"; // TODO change the font
-
-    this._draw_rect(
-      hp_obj.ctx,
-      "black",
-      hp_obj.outer_x,
-      hp_obj.outer_y,
-      hp_obj.width,
-      hp_obj.height)
-
-    hp_obj._known_hp = 0;//character.hp;
+    hp_obj.progress.value = 0;//character.hp;
 
     var that = this;
     hp_obj.draw_hp = async function() {
-      if (character.hp == hp_obj._known_hp)
+      if (character.hp == hp_obj.progress.value)
         return;
 
       var resolver = null;
@@ -648,52 +626,33 @@ export class RunGame extends Action {
 
       var total_time = 250; // time to animate in ms
       var time_per_redraw = 10;
-      var hp_per_ms = Math.abs(hp_obj._known_hp - character.hp) / total_time;
+      var hp_per_ms = Math.abs(hp_obj.progress.value - character.hp) / total_time;
       var hp_per_step = hp_per_ms * time_per_redraw;
 
       var counter = 0;
       function redraw() {
-        if (hp_obj._known_hp > character.hp) {
-          hp_obj._known_hp = Math.max( hp_obj._known_hp - hp_per_step, character.hp);
-        } else if (hp_obj._known_hp < character.hp) {
-          hp_obj._known_hp = Math.min( hp_obj._known_hp + hp_per_step, character.hp);
+        if (hp_obj.progress.value > character.hp) {
+          hp_obj.progress.value = Math.max( hp_obj.progress.value - hp_per_step, character.hp);
+        } else if (hp_obj.progress.value < character.hp) {
+          hp_obj.progress.value = Math.min( hp_obj.progress.value + hp_per_step, character.hp);
         }
 
-        that._draw_rect(
-          hp_obj.ctx,
-          "white",
-          hp_obj.inner_x,
-          hp_obj.inner_y,
-          hp_obj.inner_width,
-          hp_obj.inner_height);
 
-        // this has to be defined dynamically incase max_hp changes
-        var get_width = function(hp) {
-          return (hp / character.max_hp) * hp_obj.inner_width;
+        hp_obj.progress.className = "";
+        hp_obj.progress.classList.add("nes-progress");
+        if (hp_obj.progress.value < (character.max_hp / 4)) {
+          hp_obj.progress.classList.add("is-error");
+        } else if (hp_obj.progress.value < (character.max_hp / 2)) {
+          hp_obj.progress.classList.add("is-warning");
+        } else {
+          hp_obj.progress.classList.add("is-success");
         }
 
-        var color = "green";
-        if (hp_obj._known_hp < (character.max_hp / 4)) {
-          color = "red";
-        } else if (hp_obj._known_hp < (character.max_hp / 2)) {
-          color = "orange";
-        }
+        // TODO render text outside of progress
+        hp_obj.progress.innerText =
+          "Lvl: " + character.level + " | HP: " + Math.floor(hp_obj.progress.value) + "/" + Math.round(character.max_hp);
 
-        that._draw_rect(
-          hp_obj.ctx,
-          color,
-          hp_obj.inner_x,
-          hp_obj.inner_y,
-          get_width(hp_obj._known_hp),
-          hp_obj.inner_height);
-
-        hp_obj.ctx.fillStyle = "black";
-        hp_obj.ctx.fillText(
-          "Lvl: " + character.level + " | HP: " + Math.floor(hp_obj._known_hp) + "/" + Math.round(character.max_hp),
-          hp_obj.outer_x,
-          hp_obj.font_size);
-
-        if (hp_obj._known_hp != character.hp) {
+        if (hp_obj.progress.value != character.hp) {
           setTimeout(redraw, 10);
         } else {
           resolver();
@@ -725,12 +684,12 @@ export class RunGame extends Action {
   }
 
   async remove_hero_stats() {
-    this.hero_hp.canvas.remove();
+    this.hero_hp.progress.remove();
     delete this["hero_hp"];
   }
 
   async remove_enemy_stats() {
-    this.enemy_hp.canvas.remove();
+    this.enemy_hp.progress.remove();
     delete this["enemy_hp"];
   }
 
