@@ -29,6 +29,14 @@
 	overflow: auto;
 }
 
+.action-button {
+  padding: 1px;
+  width: 49%;
+  margin-left: 1%;
+  margin-top: 0.5%;
+  height: 49%;
+}
+
 .inventory-button {
   width: 25%; /* TODO make this look good */
   margin-bottom: 1em;

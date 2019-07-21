@@ -279,14 +279,17 @@ export class UIActionSelector extends ActionSelector {
 
     this.run = document.createElement("button");
     this.run.innerText = "run";
+    this.run.className = "action-button";
     this.actions.appendChild(this.run);
 
     this.attack = document.createElement("button");
     this.attack.innerText = "attack";
+    this.attack.className = "action-button";
     this.actions.appendChild(this.attack);
 
     this.items = document.createElement("button");
     this.items.innerText = "items";
+    this.items.className = "action-button";
     this.actions.appendChild(this.items);
 
   }
