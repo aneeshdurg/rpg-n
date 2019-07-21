@@ -278,7 +278,7 @@ export class UIActionSelector extends ActionSelector {
     this.actions = document.createElement("div");
 
     this.attack = document.createElement("button");
-    this.attack.innerText = "attack";
+    this.attack.innerText = "(a)ttack";
     this.attack.classList.add("action-button", "nes-btn", "is-primary");
     this.actions.appendChild(this.attack);
 
@@ -303,19 +303,15 @@ export class UIActionSelector extends ActionSelector {
   gen_moves_menu(resolver) {
     var that = this;
     return function() {
-      var secondary = ui.activate_secondary_display();
-
       var container = document.createElement("div");
 
-      secondary.appendChild(container);
+      that.actions.style.display = "none";
+      that.actions.parentElement.appendChild(container);
       container.style.width = "100%";
       container.style.height = "100%";
 
-      var inventory = document.createElement("div");
-      inventory.classList.add("inventory", "nes-container", "is-rounded");
-      inventory.style.margin = "auto";
-
       function cleanup() {
+        that.actions.style.display = "";
         container.remove();
         ui.deactivate_secondary_display();
       }
@@ -325,17 +321,24 @@ export class UIActionSelector extends ActionSelector {
           cleanup();
       }
 
+      var exit_btn = document.createElement("button");
+      exit_btn.classList.add("inventory-item", "nes-btn");
+      exit_btn.innerText = "Back";
+      exit_btn.style.marginBottom = "1em";
+      exit_btn.addEventListener('click', function() { cleanup(); });
+      container.appendChild(exit_btn);
+
       var move_buttons = [];
 
       for (var move of that.hero.moves) {
         var move_btn = document.createElement("button");
-        move_btn.classList.add("inventory-item", "nes-btn");
+        move_btn.classList.add("attack-btn", "nes-btn");
 
         move_btn.innerText = move.name;
         move_btn.move = move;
         move_buttons.push(move_btn);
 
-        inventory.appendChild(move_btn);
+        container.appendChild(move_btn);
       }
 
       function click_handler(e) {
@@ -345,11 +348,11 @@ export class UIActionSelector extends ActionSelector {
       }
       move_buttons.map((e) => { e.addEventListener('click', click_handler); });
 
-      container.appendChild(inventory);
+      container.appendChild(document.createElement("br"));
     }
   }
 
-  gen_items_menu(resolver) {
+  gen_items_menu(resolver) { // TODO turn Menu into this table
     var that = this;
     return function() {
       var secondary = ui.activate_secondary_display();
@@ -416,7 +419,7 @@ export class UIActionSelector extends ActionSelector {
         inventory.appendChild(itemMenu);
       }
 
-      show(types[0]);
+      show(types[0]); // TODO apply clicked style to the tab header
 
       container.appendChild(inventory);
     }
@@ -828,8 +831,8 @@ export async function select_party_member(game, parent, params) {
     var list_entry = document.createElement("li");
     list_entry.className = "party-list-entry";
 
-    var element = document.createElement("div");
-    element.className = "party-element";
+    var element = document.createElement("button");
+    element.classList.add("party-element", "nes-btn");
 
     var icon = member.sprite.cloneNode();
     icon.style = {};

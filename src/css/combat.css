@@ -1,5 +1,6 @@
 .party-element {
   background-color: rgba(100,50,250, 0.5);
+  height: 5em;
   display: inline-block;
 }
 
@@ -8,7 +9,7 @@
 }
 
 .party-icon {
-  height: 2em;
+  height: 3em;
 }
 
 .party-description {
@@ -54,6 +55,19 @@
 }
 
 .inventory-tab { /* TODO style when selected */
+}
+
+.attack-btn {
+  padding: 1px;
+  width: 47%;
+  margin-left: 1%;
+  margin-top: 0.5%;
+  height: 47%;
+  background-color: rgba(0,50,250, 0.25);
+}
+
+.attack-btn:hover {
+  opacity: 0.8;
 }
 
 .inventory-item {
