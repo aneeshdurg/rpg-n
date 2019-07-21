@@ -279,17 +279,17 @@ export class UIActionSelector extends ActionSelector {
 
     this.run = document.createElement("button");
     this.run.innerText = "run";
-    this.run.className = "action-button";
+    this.run.classList.add("action-button", "nes-btn", "is-error");
     this.actions.appendChild(this.run);
 
     this.attack = document.createElement("button");
     this.attack.innerText = "attack";
-    this.attack.className = "action-button";
+    this.attack.classList.add("action-button", "nes-btn", "is-primary");
     this.actions.appendChild(this.attack);
 
     this.items = document.createElement("button");
     this.items.innerText = "items";
-    this.items.className = "action-button";
+    this.items.classList.add("action-button", "nes-btn", "is-warning");
     this.actions.appendChild(this.items);
 
   }
@@ -306,7 +306,8 @@ export class UIActionSelector extends ActionSelector {
       container.style.height = "100%";
 
       var inventory = document.createElement("div");
-      inventory.className = "inventory";
+      inventory.classList.add("inventory", "nes-container", "is-rounded");
+      inventory.style.margin = "auto";
 
       function cleanup() {
         container.remove();
@@ -322,7 +323,7 @@ export class UIActionSelector extends ActionSelector {
 
       for (var move of that.hero.moves) {
         var move_btn = document.createElement("button");
-        move_btn.className = "inventory-item";
+        move_btn.classList.add("inventory-item", "nes-btn");
 
         move_btn.innerText = move.name;
         move_btn.move = move;
@@ -363,7 +364,8 @@ export class UIActionSelector extends ActionSelector {
       }
 
       var inventory = document.createElement("div");
-      inventory.className = "inventory";
+      inventory.classList.add("inventory", "nes-container", "is-rounded");
+      inventory.style.margin = "auto";
 
       var types = ["potions", "weapons", "equipment", "misc"];
 
@@ -381,7 +383,7 @@ export class UIActionSelector extends ActionSelector {
       for (let type of types) {
         let button = document.createElement("button");
         button.innerHTML = type;
-        button.className = "inventory-button";
+        button.className = "inventory-button nes-btn";
         button.onclick = function() { show(type); }
         inventory.appendChild(button);
       }
@@ -392,7 +394,7 @@ export class UIActionSelector extends ActionSelector {
         itemMenu.className = "inventory-tab";
         for (let idx in that.hero.backpack[type]) {
           let item = document.createElement("div");
-          item.className = "inventory-item";
+          item.className = "inventory-item nes-btn";
           item.innerHTML = that.hero.backpack[type][idx].name;
           item.addEventListener('click', (function() {
             return function() {
