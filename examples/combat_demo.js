@@ -8,7 +8,7 @@ import {Player} from '../src/characters.js';
 import {Game} from '../src/game.js';
 import {ui} from '../src/ui.js';
 
-import {Knight, get_dragon} from './test_combat_impl.js';
+import {Knight, get_dragon} from './combat_demo_game.js';
 
 window.Combat = Combat;
 

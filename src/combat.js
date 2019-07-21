@@ -293,6 +293,11 @@ export class UIActionSelector extends ActionSelector {
     this.items.classList.add("action-button", "nes-btn", "is-warning");
     this.actions.appendChild(this.items);
 
+    this.party = document.createElement("button");
+    this.party.innerText = "party";
+    this.party.classList.add("action-button", "nes-btn", "is-disabled");
+    this.actions.appendChild(this.party);
+
   }
 
   gen_moves_menu(resolver) {
@@ -596,36 +601,33 @@ export class RunGame extends Action {
   async draw_stats(character, is_below) {
     var style = window.getComputedStyle(character.active_sprite);
 
+    const hp_bar_height = 25;
+
     var hp_obj = {};
-    hp_obj.label = document.createElement('label');
+    hp_obj.hp_bar = document.createElement('label');
+    hp_obj.hp_bar.style.position = "absolute";
+    if (is_below) {
+      hp_obj.hp_bar.style.bottom = this._to_num(style.bottom) + this._to_num(style.marginBottom) - hp_bar_height;
+    } else {
+      hp_obj.hp_bar.style.top = this._to_num(style.top) + this._to_num(style.marginTop) - hp_bar_height;
+    }
+    hp_obj.hp_bar.style.left = this._to_num(style.left) + this._to_num(style.marginLeft) + this._to_num(style.width) / 4;
+    hp_obj.hp_bar.style.width = this._to_num(style.width) / 2;
 
     hp_obj.status = document.createElement('p');
     hp_obj.status.style.position = "absolute";
-    hp_obj.status.style.top = "1em";
+    hp_obj.status.style.top = 4;
     hp_obj.status.style.left = "1em"; // TODO also text color and stuff
 
     hp_obj.progress = document.createElement('progress');
     hp_obj.progress.classList.add("nes-progress", "is-success");
+    hp_obj.progress.style.height = hp_bar_height;
     hp_obj.progress.max = character.max_hp;
 
-    hp_obj.label.appendChild(hp_obj.status);
-    hp_obj.label.appendChild(hp_obj.progress);
-    character.active_sprite.parentElement.appendChild(hp_obj.label);
-
-    hp_obj.label.style.position = "absolute";
-    if (is_below) {
-      hp_obj.label.style.bottom = this._to_num(style.bottom) + this._to_num(style.marginBottom) + 5;
-    } else {
-      hp_obj.label.style.top = this._to_num(style.top) + this._to_num(style.marginTop) - 5;
-    }
-    hp_obj.label.style.left = this._to_num(style.left) + this._to_num(style.marginLeft) + this._to_num(style.width) / 4;
-    hp_obj.label.style.width = this._to_num(style.width) / 2;
-    hp_obj.label.style.height = 20; // ?
-
-    //hp_obj.width = hp_obj.canvas.width / 2;
-    //hp_obj.height = hp_obj.canvas.height;
-
-    hp_obj.progress.value = 0;//character.hp;
+    hp_obj.hp_bar.appendChild(hp_obj.status);
+    hp_obj.hp_bar.appendChild(hp_obj.progress);
+    character.active_sprite.parentElement.appendChild(hp_obj.hp_bar);
+    hp_obj.progress.value = 0;
 
     var that = this;
     hp_obj.draw_hp = async function() {
@@ -695,12 +697,12 @@ export class RunGame extends Action {
   }
 
   async remove_hero_stats() {
-    this.hero_hp.progress.remove();
+    this.hero_hp.hp_bar.remove();
     delete this["hero_hp"];
   }
 
   async remove_enemy_stats() {
-    this.enemy_hp.progress.remove();
+    this.enemy_hp.hp_bar.remove();
     delete this["enemy_hp"];
   }
 
