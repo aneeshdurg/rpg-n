@@ -62,8 +62,13 @@ export class UI {
 
   _setup_textbox() {
     var that = this;
+    this.textbox_parent = document.createElement('div');
+    this.textbox_parent.classList.add("rpgn-textbox-parent");
+
     this.textbox = document.createElement('div');
-    this.textbox.classList.add("rpgn-textbox");
+    this.textbox.classList.add("nes-container", "is-rounded", "rpgn-textbox");
+    this.textbox_parent.appendChild(this.textbox);
+
     function register_click_event(e) {
       if (that.state.hijacker) {
         that.state.hijacker(e);
@@ -82,7 +87,7 @@ export class UI {
       }
     }
     this.textbox.onclick = register_click_event;
-    this.parent.appendChild(this.textbox);
+    this.parent.appendChild(this.textbox_parent);
   }
 
   _setup_pause(game) {
@@ -101,7 +106,7 @@ export class UI {
     this.pause_button = document.createElement("button");
     this.pause_button.innerHTML = "(p)ause";
     this.pause_button.onclick = function() { that.summon_pause(game); };
-    this.pause_button.classList.add("pause-button");
+    this.pause_button.classList.add("pause-button", "nes-btn");
     this.parent.appendChild(this.pause_button);
 
   }

@@ -71,15 +71,18 @@ export class Game {
     //}
 
     this._save_input = document.createElement("input");
+    this._save_input.classList.add("nes-input");
     this._save_input.placeholder = "Enter save key (default: '')";
 
     this._save_button = document.createElement("button");
+    this._save_button.classList.add("nes-btn");
     this._save_button.innerHTML = "save";
     this._save_button.onclick = function() {
       that.save(that._save_input.value);
     }
 
     this._load_button = document.createElement("button");
+    this._load_button.classList.add("nes-btn");
     this._load_button.innerHTML = "load";
     this._load_button.onclick = function() {
       try {

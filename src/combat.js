@@ -1,4 +1,4 @@
-import {Action} from './actions.js';
+import {Action, TabbedMenu} from './actions.js';
 import {ui} from './ui.js';
 
 import * as UI from './ui.js';
@@ -277,38 +277,41 @@ export class UIActionSelector extends ActionSelector {
 
     this.actions = document.createElement("div");
 
+    this.attack = document.createElement("button");
+    this.attack.innerText = "(a)ttack";
+    this.attack.classList.add("action-button", "nes-btn", "is-primary");
+    this.actions.appendChild(this.attack);
+
     this.run = document.createElement("button");
     this.run.innerText = "run";
-    this.run.className = "action-button";
+    this.run.classList.add("action-button", "nes-btn", "is-error");
     this.actions.appendChild(this.run);
 
-    this.attack = document.createElement("button");
-    this.attack.innerText = "attack";
-    this.attack.className = "action-button";
-    this.actions.appendChild(this.attack);
 
     this.items = document.createElement("button");
     this.items.innerText = "items";
-    this.items.className = "action-button";
+    this.items.classList.add("action-button", "nes-btn", "is-warning");
     this.actions.appendChild(this.items);
+
+    this.party = document.createElement("button");
+    this.party.innerText = "party";
+    this.party.classList.add("action-button", "nes-btn", "is-disabled");
+    this.actions.appendChild(this.party);
 
   }
 
   gen_moves_menu(resolver) {
     var that = this;
     return function() {
-      var secondary = ui.activate_secondary_display();
-
       var container = document.createElement("div");
 
-      secondary.appendChild(container);
+      that.actions.style.display = "none";
+      that.actions.parentElement.appendChild(container);
       container.style.width = "100%";
       container.style.height = "100%";
 
-      var inventory = document.createElement("div");
-      inventory.className = "inventory";
-
       function cleanup() {
+        that.actions.style.display = "";
         container.remove();
         ui.deactivate_secondary_display();
       }
@@ -318,17 +321,24 @@ export class UIActionSelector extends ActionSelector {
           cleanup();
       }
 
+      var exit_btn = document.createElement("button");
+      exit_btn.classList.add("inventory-item", "nes-btn");
+      exit_btn.innerText = "Back";
+      exit_btn.style.marginBottom = "1em";
+      exit_btn.addEventListener('click', function() { cleanup(); });
+      container.appendChild(exit_btn);
+
       var move_buttons = [];
 
       for (var move of that.hero.moves) {
         var move_btn = document.createElement("button");
-        move_btn.className = "inventory-item";
+        move_btn.classList.add("attack-btn", "nes-btn");
 
         move_btn.innerText = move.name;
         move_btn.move = move;
         move_buttons.push(move_btn);
 
-        inventory.appendChild(move_btn);
+        container.appendChild(move_btn);
       }
 
       function click_handler(e) {
@@ -338,80 +348,36 @@ export class UIActionSelector extends ActionSelector {
       }
       move_buttons.map((e) => { e.addEventListener('click', click_handler); });
 
-      container.appendChild(inventory);
+      container.appendChild(document.createElement("br"));
     }
   }
 
-  gen_items_menu(resolver) {
+  gen_items_menu(resolver) { // TODO turn Menu into this table
     var that = this;
-    return function() {
-      var secondary = ui.activate_secondary_display();
+    var types = {"potions":[], "weapons":[], "equipment":[], "misc":[]};
 
-      var container = document.createElement("div");
+    for (let type of Object.getOwnPropertyNames(types)) {
+      for (let idx in that.hero.backpack[type]) {
+        let item = document.createElement("div");
+        item.className = "inventory-item nes-btn";
+        item.innerHTML = that.hero.backpack[type][idx].name;
 
-      secondary.appendChild(container);
-      container.style.width = "100%";
-      container.style.height = "100%";
-
-      function cleanup() {
-        container.remove();
-        ui.deactivate_secondary_display();
-      }
-      container.onclick = function(e) {
-        if (e.target == container)
-          cleanup();
-      }
-
-      var inventory = document.createElement("div");
-      inventory.className = "inventory";
-
-      var types = ["potions", "weapons", "equipment", "misc"];
-
-      function show(name) {
-        let elements = inventory.querySelectorAll(".inventory-tab");
-        for (let e of elements) {
-          if (e.id != name) {
-            e.style.display = "none";
-          } else {
-            e.style.display = "";
-          }
-        }
-      }
-
-      for (let type of types) {
-        let button = document.createElement("button");
-        button.innerHTML = type;
-        button.className = "inventory-button";
-        button.onclick = function() { show(type); }
-        inventory.appendChild(button);
-      }
-
-      for (let type of types) {
-        var itemMenu = document.createElement("div");
-        itemMenu.id = type;
-        itemMenu.className = "inventory-tab";
-        for (let idx in that.hero.backpack[type]) {
-          let item = document.createElement("div");
-          item.className = "inventory-item";
-          item.innerHTML = that.hero.backpack[type][idx].name;
-          item.addEventListener('click', (function() {
+        let callback = (function() {
             return function() {
-              cleanup();
               that.selected_action = that.hero.backpack[type].remove(idx);
               resolver();
             }
-          })());
-          itemMenu.appendChild(item);
-          itemMenu.appendChild(document.createElement("br"));
-        }
+        })();
 
-        inventory.appendChild(itemMenu);
+        types[type].push({
+          element: item,
+          callback: callback,
+        });
       }
-
-      show(types[0]);
-
-      container.appendChild(inventory);
     }
+
+    var menu = new TabbedMenu(ui, types, true);
+    return menu;
   }
 
   async _get_action() {
@@ -429,7 +395,10 @@ export class UIActionSelector extends ActionSelector {
     var move_handler = this.gen_moves_menu(resolver);
     this.attack.addEventListener('click', move_handler);
 
-    var item_handler = this.gen_items_menu(resolver);
+    var item_menu = this.gen_items_menu(resolver);
+    var item_handler = function() {
+      item_menu.run();
+    };
     this.items.addEventListener('click', item_handler);
 
     await action_done;
@@ -593,52 +562,37 @@ export class RunGame extends Action {
   async draw_stats(character, is_below) {
     var style = window.getComputedStyle(character.active_sprite);
 
+    const hp_bar_height = 25;
+
     var hp_obj = {};
-    hp_obj.canvas = document.createElement('canvas');
-    character.active_sprite.parentElement.appendChild(hp_obj.canvas);
-
-    hp_obj.canvas.style.position = "absolute";
+    hp_obj.hp_bar = document.createElement('label');
+    hp_obj.hp_bar.style.position = "absolute";
     if (is_below) {
-      hp_obj.canvas.style.bottom = this._to_num(style.bottom) + this._to_num(style.marginBottom);
+      hp_obj.hp_bar.style.bottom = this._to_num(style.bottom) + this._to_num(style.marginBottom) - hp_bar_height;
     } else {
-      hp_obj.canvas.style.top = this._to_num(style.top) + this._to_num(style.marginTop);
+      hp_obj.hp_bar.style.top = this._to_num(style.top) + this._to_num(style.marginTop) - hp_bar_height;
     }
-    hp_obj.canvas.style.left = this._to_num(style.left) + this._to_num(style.marginLeft);
-    hp_obj.canvas.width = this._to_num(style.width);
-    hp_obj.canvas.height = 20; // ?
+    hp_obj.hp_bar.style.left = this._to_num(style.left) + this._to_num(style.marginLeft) + this._to_num(style.width) / 4;
+    hp_obj.hp_bar.style.width = this._to_num(style.width) / 2;
 
-    hp_obj.ctx = hp_obj.canvas.getContext('2d');
-    hp_obj.width = hp_obj.canvas.width / 2;
-    hp_obj.height = hp_obj.canvas.height;
+    hp_obj.status = document.createElement('p');
+    hp_obj.status.style.position = "absolute";
+    hp_obj.status.style.top = 4;
+    hp_obj.status.style.left = "1em"; // TODO also text color and stuff
 
-    hp_obj.outer_x = (hp_obj.canvas.width / 2) - (hp_obj.width / 2);
-    hp_obj.outer_y = (hp_obj.canvas.height / 2) - (hp_obj.height / 2);
+    hp_obj.progress = document.createElement('progress');
+    hp_obj.progress.classList.add("nes-progress", "is-success");
+    hp_obj.progress.style.height = hp_bar_height;
+    hp_obj.progress.max = character.max_hp;
 
-    hp_obj.border = hp_obj.height * 0.1;
-
-    hp_obj.inner_x = hp_obj.outer_x + hp_obj.border;
-    hp_obj.inner_y = hp_obj.outer_y + hp_obj.border;
-
-    hp_obj.inner_width = hp_obj.width - 2 * hp_obj.border;
-    hp_obj.inner_height = hp_obj.canvas.height - 2 * hp_obj.border;
-
-    hp_obj.font_size = hp_obj.inner_height - 2;
-    hp_obj.font_size = hp_obj.font_size <= 0 ? hp_obj.inner_height : hp_obj.font_size;
-    hp_obj.ctx.font = hp_obj.font_size + "px Arial"; // TODO change the font
-
-    this._draw_rect(
-      hp_obj.ctx,
-      "black",
-      hp_obj.outer_x,
-      hp_obj.outer_y,
-      hp_obj.width,
-      hp_obj.height)
-
-    hp_obj._known_hp = 0;//character.hp;
+    hp_obj.hp_bar.appendChild(hp_obj.status);
+    hp_obj.hp_bar.appendChild(hp_obj.progress);
+    character.active_sprite.parentElement.appendChild(hp_obj.hp_bar);
+    hp_obj.progress.value = 0;
 
     var that = this;
     hp_obj.draw_hp = async function() {
-      if (character.hp == hp_obj._known_hp)
+      if (character.hp == hp_obj.progress.value)
         return;
 
       var resolver = null;
@@ -646,52 +600,33 @@ export class RunGame extends Action {
 
       var total_time = 250; // time to animate in ms
       var time_per_redraw = 10;
-      var hp_per_ms = Math.abs(hp_obj._known_hp - character.hp) / total_time;
+      var hp_per_ms = Math.abs(hp_obj.progress.value - character.hp) / total_time;
       var hp_per_step = hp_per_ms * time_per_redraw;
 
       var counter = 0;
       function redraw() {
-        if (hp_obj._known_hp > character.hp) {
-          hp_obj._known_hp = Math.max( hp_obj._known_hp - hp_per_step, character.hp);
-        } else if (hp_obj._known_hp < character.hp) {
-          hp_obj._known_hp = Math.min( hp_obj._known_hp + hp_per_step, character.hp);
+        if (hp_obj.progress.value > character.hp) {
+          hp_obj.progress.value = Math.max( hp_obj.progress.value - hp_per_step, character.hp);
+        } else if (hp_obj.progress.value < character.hp) {
+          hp_obj.progress.value = Math.min( hp_obj.progress.value + hp_per_step, character.hp);
         }
 
-        that._draw_rect(
-          hp_obj.ctx,
-          "white",
-          hp_obj.inner_x,
-          hp_obj.inner_y,
-          hp_obj.inner_width,
-          hp_obj.inner_height);
 
-        // this has to be defined dynamically incase max_hp changes
-        var get_width = function(hp) {
-          return (hp / character.max_hp) * hp_obj.inner_width;
+        hp_obj.progress.className = "";
+        hp_obj.progress.classList.add("nes-progress");
+        if (hp_obj.progress.value < (character.max_hp / 4)) {
+          hp_obj.progress.classList.add("is-error");
+        } else if (hp_obj.progress.value < (character.max_hp / 2)) {
+          hp_obj.progress.classList.add("is-warning");
+        } else {
+          hp_obj.progress.classList.add("is-success");
         }
 
-        var color = "green";
-        if (hp_obj._known_hp < (character.max_hp / 4)) {
-          color = "red";
-        } else if (hp_obj._known_hp < (character.max_hp / 2)) {
-          color = "orange";
-        }
+        // TODO render text outside of progress
+        hp_obj.status.innerText =
+          "Lvl: " + character.level + " | HP: " + Math.floor(hp_obj.progress.value) + "/" + Math.round(character.max_hp);
 
-        that._draw_rect(
-          hp_obj.ctx,
-          color,
-          hp_obj.inner_x,
-          hp_obj.inner_y,
-          get_width(hp_obj._known_hp),
-          hp_obj.inner_height);
-
-        hp_obj.ctx.fillStyle = "black";
-        hp_obj.ctx.fillText(
-          "Lvl: " + character.level + " | HP: " + Math.floor(hp_obj._known_hp) + "/" + Math.round(character.max_hp),
-          hp_obj.outer_x,
-          hp_obj.font_size);
-
-        if (hp_obj._known_hp != character.hp) {
+        if (hp_obj.progress.value != character.hp) {
           setTimeout(redraw, 10);
         } else {
           resolver();
@@ -723,12 +658,12 @@ export class RunGame extends Action {
   }
 
   async remove_hero_stats() {
-    this.hero_hp.canvas.remove();
+    this.hero_hp.hp_bar.remove();
     delete this["hero_hp"];
   }
 
   async remove_enemy_stats() {
-    this.enemy_hp.canvas.remove();
+    this.enemy_hp.hp_bar.remove();
     delete this["enemy_hp"];
   }
 
@@ -854,8 +789,8 @@ export async function select_party_member(game, parent, params) {
     var list_entry = document.createElement("li");
     list_entry.className = "party-list-entry";
 
-    var element = document.createElement("div");
-    element.className = "party-element";
+    var element = document.createElement("button");
+    element.classList.add("party-element", "nes-btn");
 
     var icon = member.sprite.cloneNode();
     icon.style = {};

@@ -54,6 +54,109 @@ export class Jump extends Action {
 }
 
 // Present a menu to the user and wait for a selection to be made
+export class TabbedMenu extends Action {
+  // this.tabs
+  // this.result = null;
+  // this.resolver;
+  // this.cancellable
+  constructor(ui, tabs, canCancel) {
+    super(() => {});
+
+    this.result = null;
+
+    this.canCancel = Boolean(canCancel);
+    this.tabs = tabs;
+
+    var resolver = null;
+    var selected = new Promise((r) => { resolver = r; });
+
+    this.resolver = resolver;
+    this.selected = selected;
+
+    this.ui = ui;
+  }
+
+  run_menu() { // TODO turn Menu into this table
+    var that = this;
+    var secondary = this.ui.activate_secondary_display();
+
+    var container = document.createElement("div");
+
+    secondary.appendChild(container);
+    container.style.width = "100%";
+    container.style.height = "100%";
+
+    function cleanup() {
+      container.remove();
+      that.ui.deactivate_secondary_display();
+    }
+
+    if (this.canCancel) {
+      container.onclick = function(e) {
+        if (e.target == container) {
+          cleanup();
+          that.resolver();
+        }
+      }
+    }
+
+    var inventory = document.createElement("div");
+    inventory.classList.add("inventory", "nes-container", "is-rounded");
+    inventory.style.margin = "auto";
+
+
+    function show(name) {
+      let elements = inventory.querySelectorAll(".inventory-tab");
+      for (let e of elements) {
+        if (e.id != name) {
+          e.style.display = "none";
+        } else {
+          e.style.display = "";
+        }
+      }
+    }
+
+    for (let tab of Object.getOwnPropertyNames(this.tabs)) {
+      let button = document.createElement("button");
+      button.innerHTML = tab;
+      button.className = "inventory-button nes-btn";
+      button.onclick = function() { show(tab); }
+      inventory.appendChild(button);
+    }
+
+    for (let tab of Object.getOwnPropertyNames(this.tabs)) {
+      var itemMenu = document.createElement("div");
+      itemMenu.id = tab;
+      itemMenu.className = "inventory-tab";
+      for (let item of this.tabs[tab]) {
+        console.log(item);
+        itemMenu.appendChild(item.element);
+        let callback = function() {
+          that.result = item.callback();
+          item.element.removeEventListener('click', callback);
+          cleanup();
+          that.resolver();
+        }
+        item.element.addEventListener('click', callback);
+
+        itemMenu.appendChild(document.createElement("br"));
+      }
+
+      inventory.appendChild(itemMenu);
+    }
+
+    show(Object.getOwnPropertyNames(this.tabs)[0]); // TODO apply clicked style to the tab header
+
+    container.appendChild(inventory);
+  }
+
+  async run() {
+    this.run_menu();
+    await this.selected;
+    return this.result;
+  }
+}
+
 export class Menu extends Action {
   // TODO consider taking in a list of elements instead, or create a parent
   // class for this that does that

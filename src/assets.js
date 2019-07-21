@@ -88,42 +88,12 @@ export class Assets {
     if (arguments.length == 0)
       parent_el = document.body;
 
-    var canvas = document.createElement('canvas');
-    canvas.className = "loading-progress";
+    var progress = document.createElement('progress');
+    progress.max = this.waiters.length;
+    progress.value = 0;
+    progress.classList.add("loading-progress", "nes-progress", "is-success");
     if (parent_el)
-      parent_el.append(canvas);
-
-    var ctx = canvas.getContext('2d');
-
-    function draw_rect(color, x, y, width, height) {
-      ctx.beginPath();
-      ctx.fillStyle = color;
-      ctx.rect(x, y, width, height);
-      ctx.fill();
-    }
-    var border_width = 2;
-
-    var inner_width = 100;
-    var outer_width = 100 + 2 * border_width;
-
-    var inner_height = 20;
-    var outer_height = 20 + 2 * border_width;
-
-    var outer_x = (canvas.width / 2) - (outer_width / 2);
-    var outer_y = (canvas.height / 2) - (outer_height / 2);
-
-    var inner_x = outer_x + border_width;
-    var inner_y = outer_y + border_width;
-
-    draw_rect("black", outer_x, outer_y, outer_width, outer_height);
-    draw_rect("white", inner_x, inner_y, inner_width, inner_height);
-
-    var total_waiting = this.waiters.length;
-
-    var that = this;
-    function get_width() {
-      return 100 * (total_waiting - that.waiters.length) / total_waiting;
-    }
+      parent_el.append(progress);
 
     function sleep(duration) {
       var p = new Promise(r => {
@@ -134,14 +104,13 @@ export class Assets {
 
     while(this.waiters.length) {
       await this.waiters.pop();
-      draw_rect("green", inner_x, inner_y, get_width(), inner_height);
-
+      progress.value += 1;
       if (parent_el)
         await sleep(100);
     }
 
     if (parent_el)
-      canvas.remove();
+      progress.remove();
   }
 }
 
