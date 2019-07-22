@@ -55,7 +55,7 @@ var fight_scene = new UI.Scene({
       new Action(async function() {
         member = await Combat.select_party_member(game, ui.textbox, {});
       }),
-      new Combat.RunGame(game, {
+      new Combat.RunCombat(game, {
         initial_text: "Encountered a ferocious dragon!\n",
         hero: function get_hero() {
           return member;

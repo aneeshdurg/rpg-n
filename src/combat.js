@@ -427,8 +427,6 @@ export class UIActionSelector extends ActionSelector {
   }
 }
 
-class RunCombat extends Action {}
-
 // Combat.scene will process certain Actions that UI.Scene cannot. e.g. RunCombat
 //// How a fight scene works:
 //  Enemy party is summoned
@@ -468,12 +466,12 @@ export class Run extends MoveResult {
  *
  * returns Action?
  */
-export class RunGame extends Action {
+export class RunCombat extends Action {
   constructor(game, params) {
     super(() => {});
 
     this.game = game;
-    this.params = RunGame.sanitize_params(params);
+    this.params = RunCombat.sanitize_params(params);
     this.initial_text = this.params.initial_text || "";
     this.hero = params.hero; // TODO check that this exists allow it to be a CombatCharacter or a function
     this.enemy = params.enemy;

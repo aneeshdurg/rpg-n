@@ -24,7 +24,7 @@ export var play_smash = new Scene({
         await Draw.animate(Sonic.sprite, "zoomOut", {noCancel: true}).run();
         Sonic.sprite.remove();
       }),
-      new Combat.RunGame(game, {
+      new Combat.RunCombat(game, {
         initial_text: "Sonic would like to battle!\n",
         hero: function get_hero() {
           return member;
