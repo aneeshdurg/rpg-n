@@ -171,7 +171,6 @@ export class Character extends Characters.Character {
   }
 
   forget_move(move) {
-    // TODO mark moves as forgettable or something?
     var move_idx = this.moves.indexOf(move);
     if (move_idx >= 0) {
       this.moves.splice(move_idx, 1);
@@ -419,7 +418,7 @@ export class UIActionSelector extends ActionSelector {
       var result = item.use();
       return result;
     } else if (action == "run") {
-      return new Combat.Run(); // special run move that needs to be processed differently
+      return new RunResult(); // special run move that needs to be processed differently
     } else if (action instanceof Move) {
       var result = await action.use_move(this.enemy);
       return result;
@@ -427,30 +426,110 @@ export class UIActionSelector extends ActionSelector {
   }
 }
 
-// Combat.scene will process certain Actions that UI.Scene cannot. e.g. RunCombat
-//// How a fight scene works:
-//  Enemy party is summoned
-//  Hero party is summoned
-//  determine who goes first
-//  while (!end_condition()) {
-//    hero_action = get_hero_action();
-//    enemy_action = get_enemy_action();
-//    if (hero_first) {
-//      hero_action();
-//      enemy_action();
-//    } else {
-//      enemy_action();
-//      hero_action();
-//    }
-//    if (hero_lost()) {
-//      on_lose();
-//    } else if (enemy_lost()) {
-//      on_win();
-//    }
-//  }
-export class Run extends MoveResult {
+export class RunResult extends MoveResult {
   constructor() {
     super(new Damage(0), new Damage(0), "run");
+  }
+}
+
+class HpObj {
+  static get hp_bar_height() { return 25; }
+
+  _to_num(prop) {
+    return Number((prop + "").replace('px', ''));
+  }
+
+  constructor(character, is_below) {
+    this.character = character;
+    this.is_below = is_below;
+
+
+    this.hp_bar = document.createElement('label');
+    this.set_hp_bar_style();
+
+    var that = this;
+    this.onresize = function() {
+      that.set_hp_bar_style();
+    }
+    window.addEventListener('resize', this.onresize);
+
+    this.status = document.createElement('p');
+    this.status.style.position = "absolute";
+    this.status.style.top = 4;
+    this.status.style.left = "1em"; // TODO also text color and stuff
+
+    this.progress = document.createElement('progress');
+    this.progress.classList.add("nes-progress", "is-success");
+    this.progress.style.height = HpObj.hp_bar_height;
+    this.progress.max = this.character.max_hp;
+
+    this.hp_bar.appendChild(this.status);
+    this.hp_bar.appendChild(this.progress);
+    this.character.active_sprite.parentElement.appendChild(this.hp_bar);
+    this.progress.value = 0;
+  }
+
+  set_hp_bar_style() {
+    var style = window.getComputedStyle(this.character.active_sprite);
+    this.hp_bar.style.position = "absolute";
+    if (this.is_below) {
+      this.hp_bar.style.bottom = this._to_num(style.bottom) + this._to_num(style.marginBottom) - HpObj.hp_bar_height;
+    } else {
+      this.hp_bar.style.top = this._to_num(style.top) + this._to_num(style.marginTop) - HpObj.hp_bar_height;
+    }
+    this.hp_bar.style.left = this._to_num(style.left) + this._to_num(style.marginLeft) + this._to_num(style.width) / 4;
+    this.hp_bar.style.width = this._to_num(style.width) / 2;
+  }
+
+  async draw_hp () {
+    if (this.character.hp == this.progress.value)
+      return;
+
+    var resolver = null;
+    var drawing_done = new Promise((r) => { resolver = r; });
+
+    var total_time = 250; // time to animate in ms
+    var time_per_redraw = 10;
+    var hp_per_ms = Math.abs(this.progress.value - this.character.hp) / total_time;
+    var hp_per_step = hp_per_ms * time_per_redraw;
+
+    var counter = 0;
+    var that = this;
+    (function redraw() {
+      if (that.progress.value > that.character.hp) {
+        that.progress.value = Math.max( that.progress.value - hp_per_step, that.character.hp);
+      } else if (that.progress.value < that.character.hp) {
+        that.progress.value = Math.min( that.progress.value + hp_per_step, that.character.hp);
+      }
+
+
+      that.progress.className = "";
+      that.progress.classList.add("nes-progress");
+      if (that.progress.value < (that.character.max_hp / 4)) {
+        that.progress.classList.add("is-error");
+      } else if (that.progress.value < (that.character.max_hp / 2)) {
+        that.progress.classList.add("is-warning");
+      } else {
+        that.progress.classList.add("is-success");
+      }
+
+      // TODO render text outside of progress
+      that.status.innerText =
+        "Lvl: " + that.character.level + " | HP: " + Math.floor(that.progress.value) + "/" + Math.round(that.character.max_hp);
+
+      if (that.progress.value != that.character.hp) {
+        setTimeout(redraw, 10);
+      } else {
+        resolver();
+      }
+    })();
+
+    await drawing_done;
+  }
+
+  destroy() {
+    this.hp_bar.remove();
+    window.removeEventListener('resize', this.onresize);
   }
 }
 
@@ -524,7 +603,7 @@ export class RunCombat extends Action {
     while (!result)
       result = await player1_actions.get_action();
 
-    if (result instanceof Run) {
+    if (result instanceof RunResult) {
       this.textbox.innerText += "Tried to run away...\n";
       await ui.delay(500).wait();
       if(this.params.allow_run && Math.random() < this.params.allow_run.run_chance) {
@@ -546,95 +625,8 @@ export class RunCombat extends Action {
     await ui.wait_for_click();
   }
 
-  _draw_rect(ctx, color, x, y, width, height) {
-    ctx.beginPath();
-    ctx.fillStyle = color;
-    ctx.rect(x, y, width, height);
-    ctx.fill();
-  }
-
-  _to_num(prop) {
-    return Number((prop + "").replace('px', ''));
-  }
-
   async draw_stats(character, is_below) {
-    var style = window.getComputedStyle(character.active_sprite);
-
-    const hp_bar_height = 25;
-
-    var hp_obj = {};
-    hp_obj.hp_bar = document.createElement('label');
-    hp_obj.hp_bar.style.position = "absolute";
-    if (is_below) {
-      hp_obj.hp_bar.style.bottom = this._to_num(style.bottom) + this._to_num(style.marginBottom) - hp_bar_height;
-    } else {
-      hp_obj.hp_bar.style.top = this._to_num(style.top) + this._to_num(style.marginTop) - hp_bar_height;
-    }
-    hp_obj.hp_bar.style.left = this._to_num(style.left) + this._to_num(style.marginLeft) + this._to_num(style.width) / 4;
-    hp_obj.hp_bar.style.width = this._to_num(style.width) / 2;
-
-    hp_obj.status = document.createElement('p');
-    hp_obj.status.style.position = "absolute";
-    hp_obj.status.style.top = 4;
-    hp_obj.status.style.left = "1em"; // TODO also text color and stuff
-
-    hp_obj.progress = document.createElement('progress');
-    hp_obj.progress.classList.add("nes-progress", "is-success");
-    hp_obj.progress.style.height = hp_bar_height;
-    hp_obj.progress.max = character.max_hp;
-
-    hp_obj.hp_bar.appendChild(hp_obj.status);
-    hp_obj.hp_bar.appendChild(hp_obj.progress);
-    character.active_sprite.parentElement.appendChild(hp_obj.hp_bar);
-    hp_obj.progress.value = 0;
-
-    var that = this;
-    hp_obj.draw_hp = async function() {
-      if (character.hp == hp_obj.progress.value)
-        return;
-
-      var resolver = null;
-      var drawing_done = new Promise((r) => { resolver = r; });
-
-      var total_time = 250; // time to animate in ms
-      var time_per_redraw = 10;
-      var hp_per_ms = Math.abs(hp_obj.progress.value - character.hp) / total_time;
-      var hp_per_step = hp_per_ms * time_per_redraw;
-
-      var counter = 0;
-      function redraw() {
-        if (hp_obj.progress.value > character.hp) {
-          hp_obj.progress.value = Math.max( hp_obj.progress.value - hp_per_step, character.hp);
-        } else if (hp_obj.progress.value < character.hp) {
-          hp_obj.progress.value = Math.min( hp_obj.progress.value + hp_per_step, character.hp);
-        }
-
-
-        hp_obj.progress.className = "";
-        hp_obj.progress.classList.add("nes-progress");
-        if (hp_obj.progress.value < (character.max_hp / 4)) {
-          hp_obj.progress.classList.add("is-error");
-        } else if (hp_obj.progress.value < (character.max_hp / 2)) {
-          hp_obj.progress.classList.add("is-warning");
-        } else {
-          hp_obj.progress.classList.add("is-success");
-        }
-
-        // TODO render text outside of progress
-        hp_obj.status.innerText =
-          "Lvl: " + character.level + " | HP: " + Math.floor(hp_obj.progress.value) + "/" + Math.round(character.max_hp);
-
-        if (hp_obj.progress.value != character.hp) {
-          setTimeout(redraw, 10);
-        } else {
-          resolver();
-        }
-      }
-      setTimeout(redraw, 10);
-
-      await drawing_done;
-    }
-
+    var hp_obj = new HpObj(character, is_below);
     await hp_obj.draw_hp();
     return hp_obj;
   }
@@ -656,12 +648,12 @@ export class RunCombat extends Action {
   }
 
   async remove_hero_stats() {
-    this.hero_hp.hp_bar.remove();
+    this.hero_hp.destroy();
     delete this["hero_hp"];
   }
 
   async remove_enemy_stats() {
-    this.enemy_hp.hp_bar.remove();
+    this.enemy_hp.destroy();
     delete this["enemy_hp"];
   }
 
@@ -784,7 +776,7 @@ export async function select_party_member(game, parent, params) {
       continue;
     }
 
-    var list_entry = document.createElement("li");
+    var list_entry = document.createElement("div");
     list_entry.className = "party-list-entry";
 
     var element = document.createElement("button");

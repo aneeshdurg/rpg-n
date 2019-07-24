@@ -59,12 +59,14 @@ export class TabbedMenu extends Action {
   // this.result = null;
   // this.resolver;
   // this.cancellable
-  constructor(ui, tabs, canCancel) {
+  constructor(ui, tabs, canCancel, hideTabs) {
     super(() => {});
 
     this.result = null;
 
     this.canCancel = Boolean(canCancel);
+    this.hideTabs = Boolean(hideTabs);
+
     this.tabs = tabs;
 
     var resolver = null;
@@ -116,12 +118,14 @@ export class TabbedMenu extends Action {
       }
     }
 
-    for (let tab of Object.getOwnPropertyNames(this.tabs)) {
-      let button = document.createElement("button");
-      button.innerHTML = tab;
-      button.className = "inventory-button nes-btn";
-      button.onclick = function() { show(tab); }
-      inventory.appendChild(button);
+    if (!this.hideTabs) {
+      for (let tab of Object.getOwnPropertyNames(this.tabs)) {
+        let button = document.createElement("button");
+        button.innerHTML = tab;
+        button.className = "inventory-button nes-btn";
+        button.onclick = function() { show(tab); }
+        inventory.appendChild(button);
+      }
     }
 
     for (let tab of Object.getOwnPropertyNames(this.tabs)) {
