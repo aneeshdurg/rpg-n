@@ -16,7 +16,7 @@ export var play_smash = new Scene({
       ui.draw(Sonic.sprite, Positions.Left),
       s("Select your fighter!"),
       new Action(async function() {
-        member = await Combat.select_party_member(game, ui.textbox, {});
+        member = await Combat.select_party_member(game);
       }),
       s("Awesome, let's fight!"),
       ui.setBackground(assets.images.get('battlefield')),

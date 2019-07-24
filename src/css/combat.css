@@ -1,6 +1,8 @@
+/* TODO remove party-* styles that aren't necessary */
 .party-element {
   background-color: rgba(100,50,250, 0.5);
   height: 5em;
+  width: 100%;
   display: inline-block;
 }
 

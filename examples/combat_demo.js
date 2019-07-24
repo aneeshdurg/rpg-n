@@ -53,7 +53,7 @@ var fight_scene = new UI.Scene({
       "Choose your fighter!",
       ui.setBackground(assets.images.get('wasteland')),
       new Action(async function() {
-        member = await Combat.select_party_member(game, ui.textbox, {});
+        member = await Combat.select_party_member(game);
       }),
       new Combat.RunCombat(game, {
         initial_text: "Encountered a ferocious dragon!\n",

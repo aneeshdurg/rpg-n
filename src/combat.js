@@ -742,36 +742,15 @@ export class RunCombat extends Action {
   }
 }
 
-// TODO finish this!!!
-// TODO merge this with Menu or something?
-// params:
-//  allowCancel
-//  filter
-export async function select_party_member(game, parent, params) {
-  // TODO allow customizing this function...maybe make it a method of Combat.Scene?
-  var filter = params.filter || ((e) => true);
-  var allowCancel = Boolean(params.allowCancel);
+// TODO return the action
+export async function select_party_member(game, filter, canCancel) {
+  filter = filter || ((e) => true);
+  canCancel = Boolean(canCancel);
 
-  var resolver = null;
-  var selected_member = null;
-  var selection_done = new Promise((r) => { resolver = r; });
-
-  // TODO add text indicating cancellable
-  var container = document.createElement("div");
-  container.className = "party-list-div";
-  container.onclick = function(e) {
-    if (allowCancel && (e.target == container)) {
-      container.remove();
-      resolver();
-    }
-  }
-
-  var list = document.createElement("ul");
-  list.className = "party-list";
-  container.appendChild(list);
+  var party_menu = {party: []};
 
   // TODO keyboard support
-  for (var member of game.player.party) {
+  for (let member of game.player.party) {
     if (!filter(member)) {
       continue;
     }
@@ -794,20 +773,15 @@ export async function select_party_member(game, parent, params) {
     description.innerHTML += "hp: " + member.hp + "/" + member.max_hp + " ";
 
     element.appendChild(description);
-    element.onclick = (function(member) {
-      return function(e) {
-        resolver();
-        selected_member = member;
-      }
-    })(member);
-
     list_entry.appendChild(element);
-    list.appendChild(list_entry);
+
+    party_menu.party.push({
+      element: list_entry,
+      callback: () => member,
+    });
   }
 
-  parent.appendChild(container);
-  await selection_done;
-  return selected_member;
+  return await (new TabbedMenu(ui, party_menu, canCancel, true)).run();
 }
 
 export class Scene extends UI.Scene {
