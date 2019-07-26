@@ -134,8 +134,7 @@ export class Punch extends ExampleMove {
       await ui.draw(this.sprite, position).run();
       ui.playAudio(this.sfx, {asynchronous: true}).run();
       await ui.delay(250).run();
-      await Draw.animate(this.sprite, 'zoomOut').run();
-      await Draw.remove(this.sprite);
+      await Draw.remove(this.sprite, 'zoomOut').run();
 
     } else {
     }
@@ -209,9 +208,7 @@ export class Fireball extends ExampleMove {
       await ui.draw(this.sprite, position).run();
       ui.playAudio(this.sfx, {asynchronous: true}).run();
       await ui.delay(250).run();
-      await Draw.animate(this.sprite, 'zoomOut').run();
-      await Draw.remove(this.sprite);
-
+      await Draw.remove(this.sprite, 'zoomOut').run();
     } else {
     }
 

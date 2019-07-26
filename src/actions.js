@@ -55,6 +55,8 @@ export class Jump extends Action {
 
 // Present a menu to the user and wait for a selection to be made
 export class TabbedMenu extends Action {
+  // TODO keyboard support
+
   // this.tabs
   // this.result = null;
   // this.resolver;

@@ -18,7 +18,7 @@ export var entry = new Scene({
       ui.draw(Sonic.get_image('silhouette'), Positions.Left, {height: "100%"}, 'lightSpeedIn'),
       s("What's up?"),
       "Who is that?",
-      new Action(async function() { Draw.remove(Sonic.get_image('silhouette')); }),
+      Draw.remove(Sonic.get_image('silhouette')),
       ui.draw(Sonic.sprite, Positions.Left, {height: "100%"}, 'fadeIn'),
       "Oh. It's sonic.",
       me("Hi Sonic."),
@@ -49,11 +49,7 @@ export var entry = new Scene({
             Actions.CLEAR_TEXTBOX,
             ui.draw(assets.images.get('coin'), Positions.Center, {height: "50%"}, "zoomIn", {asynchronous: true}),
             s("Take this!"),
-            new AsynchronousAction(async function() {
-              var coin = assets.images.get('coin');
-              await Draw.animate(coin, "zoomOut", {noCancel: true}).run();
-              Draw.remove(coin);
-            }),
+            Draw.remove(assets.images.get('coin'), "zoomOut", {noCancel: true}),
             ui.exec((game) => {
               var member = game.player.party[0];
               member.backpack.misc.push(new SSBOrb(member));

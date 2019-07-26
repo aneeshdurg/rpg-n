@@ -132,7 +132,6 @@ export class UI {
     // });
 
     Mousetrap.bind('space', function() {
-      console.log("click!");
       eventFire(that.textbox, 'click');
     });
   }
@@ -522,7 +521,7 @@ export class Scene {
     } else if (action instanceof Sequence) {
       return await this.handle_sequence(game, idx, action);
     } else {
-      console.log(action);
+      console.log("Unexpected argument", action);
       throw new Error("Unexpected argument");
     }
   }
@@ -659,9 +658,24 @@ export class Draw {
     return new Action(callback);
   }
 
-  static async remove(element) {
+  static _remove(element) {
     element.remove();
     element.style.display = "none";
     document.body.appendChild(element);
+  }
+
+  static remove(element, animation, animation_params) {
+    animation_params = animation_params || {};
+    var type = animation_params.asynchronous ? AsynchronousAction : Action;
+    console.log("TYPE", type);
+    return new type(async () => {
+      if (animation) {
+        await Draw.animate(element, animation, animation_params).run();
+      }
+
+      console.log("Removing", element);
+
+      Draw._remove(element);
+    });
   }
 }

@@ -166,7 +166,8 @@ export class Character extends Characters.Character {
   }
 
   add_move(move) {
-    // TODO verify that move is an instanceof Move
+    if (!(move instanceof Move))
+      throw new Error("Expected instance of Combat.Move");
     this.moves.push(move);
   }
 
@@ -178,7 +179,9 @@ export class Character extends Characters.Character {
   }
 
   damage(dmg) {
-    // TODO check dmg type
+    if (!(dmg instanceof Damage))
+      throw new Error("Expected instance of Combat.Damage");
+
     var modifier = 0;
     for (var type of this.types) {
       for (var dmg_type of dmg.types) {
@@ -749,7 +752,6 @@ export async function select_party_member(game, filter, canCancel) {
 
   var party_menu = {party: []};
 
-  // TODO keyboard support
   for (let member of game.player.party) {
     if (!filter(member)) {
       continue;
