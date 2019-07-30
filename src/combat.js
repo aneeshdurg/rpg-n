@@ -82,6 +82,26 @@ export class MoveResult {
   }
 }
 
+export class DummyMove extends MoveResult {
+  constructor(description) {
+    super(new Damage(0), new Damage(0), description);
+  }
+}
+
+export class RunResult extends DummyMove {
+  constructor(override) {
+    super("run");
+    this.override = Boolean(override);
+  }
+}
+
+export class PartyResult extends DummyMove {
+  constructor(member) {
+    super("party");
+    this.member = member;
+  }
+}
+
 export class Move {
   constructor(user, types, sfx) {
     this.user = user;
@@ -242,8 +262,8 @@ export class InteractiveCharacter extends Character {
     return interactive_character;
   }
 
-  action_selector(enemy) {
-    return new UIActionSelector(this, enemy, ui.textbox);
+  action_selector(enemy, game) {
+    return new UIActionSelector(this, enemy, game, ui.textbox);
   }
 }
 
@@ -272,8 +292,10 @@ export class ActionSelector {
 }
 
 export class UIActionSelector extends ActionSelector {
-  constructor(hero, enemy, parent) {
+  constructor(hero, enemy, game, parent) {
     super(hero, enemy);
+
+    this.game = game;
 
     this.parent = parent;
 
@@ -299,7 +321,7 @@ export class UIActionSelector extends ActionSelector {
 
     this.party = document.createElement("button");
     this.party.innerText = "party";
-    this.party.classList.add("action-button", "nes-btn", "is-disabled");
+    this.party.classList.add("action-button", "nes-btn");
     this.actions.appendChild(this.party);
 
   }
@@ -394,7 +416,7 @@ export class UIActionSelector extends ActionSelector {
     var action_done = new Promise((r) => { resolver = r; });
 
     var that = this;
-    var run_handler = function() { that.selected_action = "run"; resolver(); };
+    var run_handler = function() { that.selected_action = new RunResult; resolver(); };
     this.run.addEventListener('click', run_handler);
     keymanager.register('r', run_handler);
 
@@ -409,11 +431,27 @@ export class UIActionSelector extends ActionSelector {
     this.items.addEventListener('click', item_handler);
     keymanager.register('i', item_handler);
 
+    var party_handler = async function() {
+      // TODO instead of selecting the party from that.game, use a specified
+      // list of fighters passed into run
+      var member = await select_party_member(that.game, null, true);
+      if (!member || member == that.hero)
+        return;
+
+      // TODO add text to display during a member switch
+      that.selected_action = new PartyResult(member);
+      resolver();
+    }
+    this.party.addEventListener('click', party_handler);
+    keymanager.register('p', party_handler);
+
     await action_done;
+    console.log("Done", this.selected_action);
 
     this.run.removeEventListener('click', run_handler);
     this.attack.removeEventListener('click', move_handler);
     this.items.removeEventListener('click', item_handler);
+    this.party.removeEventListener('click', party_handler);
 
     this.actions.remove();
 
@@ -427,18 +465,12 @@ export class UIActionSelector extends ActionSelector {
       var item = action;
       var result = item.use();
       return result;
-    } else if (action == "run") {
-      return new RunResult(); // special run move that needs to be processed differently
+    } else if (action instanceof MoveResult) {
+      return action;
     } else if (action instanceof Move) {
       var result = await action.use_move(this.enemy);
       return result;
     }
-  }
-}
-
-export class RunResult extends MoveResult {
-  constructor() {
-    super(new Damage(0), new Damage(0), "run");
   }
 }
 
@@ -588,6 +620,7 @@ export class RunCombat extends Action {
 
     params.on_win = params.on_win; // TODO make win/lose handlers
     params.on_lose = params.on_lose; // TODO make win/lose handlersS
+    // TODO redefine loss as when all member of a specified party have 0 hp
 
     return params;
   }
@@ -604,6 +637,51 @@ export class RunCombat extends Action {
     }
   }
 
+  async handle_run(player1, player2, result) {
+    this.textbox.innerText += "Tried to run away...\n";
+    await ui.delay(500).wait();
+    if(this.params.allow_run && (result.override || Math.random() < this.params.allow_run.run_chance)) {
+      this.textbox.innerText += "Got away safely!\n";
+      this.ran = true;
+      return;
+    } else {
+      this.textbox.innerText += "but couldn't!\n";
+    }
+  }
+
+  async handle_party(player1, player2, result) {
+    console.log("handling a party!");
+    // TODO refactor this to be hero/enemy agnostic
+    if (player1 == this.hero) {
+      await this.remove_hero_stats();
+      this.hero.hero_sprite.remove();
+      this.hero = result.member;
+      await this.setup_hero();
+    } else {
+      await this.remove_enemy_stats();
+      this.enemy.enemy_sprite.remove();
+      this.enemy = result.member;
+      await this.setup_enemy();
+    }
+  }
+
+  async handle_result(player1, player2, result) {
+    if (result instanceof DummyMove) {
+      if (result instanceof RunResult)
+        await this.handle_run(player1, player2, result);
+      else if (result instanceof PartyResult)
+        await this.handle_party(player1, player2, result);
+    }
+    else {
+      player1.damage(result.dmg_to_self);
+      player2.damage(result.dmg_to_enemy);
+      this.update_hero_stats();
+      this.update_enemy_stats();
+
+      this.textbox.innerText += result.description + "\n";
+    }
+  }
+
   async run_turn(player1, player1_actions, player2) {
     await player1.run_status_effects(this.display_status_effect.bind(this));
     await this.update_hero_stats();
@@ -613,24 +691,8 @@ export class RunCombat extends Action {
     while (!result)
       result = await player1_actions.get_action();
 
-    if (result instanceof RunResult) {
-      this.textbox.innerText += "Tried to run away...\n";
-      await ui.delay(500).wait();
-      if(this.params.allow_run && Math.random() < this.params.allow_run.run_chance) {
-        this.textbox.innerText += "Got away safely!\n";
-        this.ran = true;
-        return;
-      } else {
-        this.textbox.innerText += "but couldn't!\n";
-      }
-    } else {
-      player1.damage(result.dmg_to_self);
-      player2.damage(result.dmg_to_enemy);
-      this.update_hero_stats();
-      this.update_enemy_stats();
+    await this.handle_result(player1, player2, result);
 
-      this.textbox.innerText += result.description + "\n";
-    }
     await ui.delay(500).wait();
     await ui.wait_for_click();
   }
@@ -641,7 +703,9 @@ export class RunCombat extends Action {
     return hp_obj;
   }
 
+  // TODO refactor this to be hero/enemy agnostic
   async draw_hero_stats() {
+    console.log("Drew hero stats!");
     this.hero_hp = await this.draw_stats(this.hero);
   }
 
@@ -667,28 +731,32 @@ export class RunCombat extends Action {
     delete this["enemy_hp"];
   }
 
-  async setup() {
+  async setup_hero() {
     if (this.hero instanceof Function) {
       this.hero = await this.hero();
     }
+    this.hero.active_sprite = this.hero.hero_sprite;
+    await ui.draw(this.hero.active_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
+    await this.draw_hero_stats();
+  }
 
+  async setup_enemy() {
     if (this.enemy instanceof Function) {
       this.enemy = await this.enemy();
     }
-
-    this.hero.active_sprite = this.hero.hero_sprite;
-    await ui.draw(this.hero.active_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
-
     this.enemy.active_sprite = this.enemy.enemy_sprite;
     await ui.draw(this.enemy.active_sprite, Positions.UpRight, {height: "512px"}, 'zoomIn').run();
+    await this.draw_enemy_stats();
+  }
+
+  async setup() {
+    await this.setup_hero();
+    await this.setup_enemy();
 
     if (this.initial_text) {
       this.textbox.innerText = this.initial_text;
       await ui.wait_for_click();
     }
-
-    await this.draw_hero_stats();
-    await this.draw_enemy_stats();
 
     this.is_hero_turn = true; // TODO allow for first turn to be enemy turn
     this.setup_done = true;
@@ -703,8 +771,8 @@ export class RunCombat extends Action {
       await this.setup();
     }
 
-    var hero_actions = this.hero.action_selector(this.enemy);
-    var enemy_actions = this.enemy.action_selector(this.hero);
+    var hero_actions = this.hero.action_selector(this.enemy, this.game);
+    var enemy_actions = this.enemy.action_selector(this.hero, this.game);
 
     this.ran = false;
     var until_reached = false;

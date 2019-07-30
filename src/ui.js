@@ -343,6 +343,8 @@ export class UI {
   }
 }
 
+export var ui = new UI();
+
 function apply_background_style(element) {
   element.style.width = "100%";
   element.style.height = "100%";
@@ -388,8 +390,6 @@ async function pause_all_audio() {
   }
   return paused_audio;
 }
-
-export var ui = new UI();
 
 const valid_scene_symbols = new Set([
   Actions.NO_ACTION,

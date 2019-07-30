@@ -24,7 +24,6 @@ var knight = Knight.from_obj({
   }
 });
 
-Me.party.push(knight);
 var me = Me.renderer;
 
 var game = new Game(Me);
@@ -112,6 +111,9 @@ var fight_scene = new UI.Scene({
 (async function() {
   await knight.wait_for_load();
   await assets.wait_for_load();
+
+  Me.party.push(knight);
+  Me.party.push(await get_dragon(2));
 
   game.initialize(document.body, [
     fight_scene,

@@ -135,7 +135,6 @@ export class TabbedMenu extends Action {
       itemMenu.id = tab;
       itemMenu.className = "inventory-tab";
       for (let item of this.tabs[tab]) {
-        console.log(item);
         itemMenu.appendChild(item.element);
         let callback = function() {
           that.result = item.callback();
