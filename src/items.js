@@ -70,5 +70,17 @@ export class Backpack {
 }
 
 export class Wallet {
-  // TODO desscribe money
+  constructor(amt) {
+    this._balance = amt;
+  }
+
+  set balance(amt) {
+    if ((this._balance + amt) < 0)
+      throw new Error("Balance cannot be negative!");
+
+    this._balance += amt;
+  }
+
+  get balance() { return this._balance; }
+
 }

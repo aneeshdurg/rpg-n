@@ -80,7 +80,7 @@ export class TabbedMenu extends Action {
     this.ui = ui;
   }
 
-  run_menu() { // TODO turn Menu into this table
+  run_menu() {
     var that = this;
     var secondary = this.ui.activate_secondary_display();
 
@@ -163,9 +163,8 @@ export class TabbedMenu extends Action {
   }
 }
 
+// TODO subclass from TabbedMenu or rename this to TextMenu
 export class Menu extends Action {
-  // TODO consider taking in a list of elements instead, or create a parent
-  // class for this that does that
   constructor(options, ui) {
     super(async function() {
       var resolver = null;

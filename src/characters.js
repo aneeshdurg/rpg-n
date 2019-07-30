@@ -82,6 +82,7 @@ export class Player extends Character {
   constructor(name, color) {
     super(name, color);
     this.party = new Party();
+    this.wallet = new items.Wallet(0);
   }
 
   to_string() {

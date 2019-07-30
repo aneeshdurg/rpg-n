@@ -15,9 +15,7 @@ import {
   Sequence,
 } from './actions.js';
 import {History, HistoryItem} from './game.js';
-import {config} from './config.js';
-
-import './mousetrap/mousetrap.min.js';
+import {config, keymanager} from './config.js';
 
 export class UI {
   constructor() {
@@ -116,14 +114,14 @@ export class UI {
     // TODO make a wrapper around Mousetrap to allow things like
     // having a "stack" of functions that can be used for 'context aware' actions
 
-    Mousetrap.bind('p', function() {
+    keymanager.register('p', function() {
       if (that.pause_menu.style.display == "none")
         that.summon_pause(game);
       else
         that.remove_pause();
     });
 
-    Mousetrap.bind('t', function() {
+    keymanager.register('t', function() {
       that.toggle_textbox();
     });
 
@@ -131,7 +129,7 @@ export class UI {
     //   game.save();
     // });
 
-    Mousetrap.bind('space', function() {
+    keymanager.register('space', function() {
       eventFire(that.textbox, 'click');
     });
   }
@@ -189,9 +187,14 @@ export class UI {
       this.playAudio(this.pause_menu.paused_music.pop(), {noReset: true, asynchronous: true}).run();
     this.pause_menu.style.display = "none";
     this.pause_button.style.display = "";
+    keymanager.pop_layer();
   }
 
   async summon_pause(game) {
+    keymanager.push_layer();
+
+    keymanager.register('esc', this.remove_pause.bind(this));
+
     this.pause_menu.style.display = "";
     this.pause_menu.paused_music = await pause_all_audio();
     this.pause_button.style.display = "none";
@@ -419,7 +422,7 @@ export class Scene {
     var typed = new Typed(p, {
       strings: [text],
       showCursor: false,
-      typeSpeed: 40, // TODO make this customizable
+      typeSpeed: config.typespeed, // TODO make this customizable
       onComplete: resolver,
       onDestroy: resolver,
     });

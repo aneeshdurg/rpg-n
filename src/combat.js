@@ -1,4 +1,5 @@
 import {Action, TabbedMenu} from './actions.js';
+import {keymanager} from './config.js';
 import {ui} from './ui.js';
 
 import * as UI from './ui.js';
@@ -6,6 +7,7 @@ import * as Characters from './characters.js';
 import * as Text from './text.js';
 import * as Items from './items.js';
 import * as Positions from './positions.js';
+
 
 /**
  * move_heirarchy = {
@@ -383,6 +385,7 @@ export class UIActionSelector extends ActionSelector {
   }
 
   async _get_action() {
+    keymanager.push_layer();
     this.selected_action = null;
     this.parent.innerHTML = "";
     this.parent.appendChild(this.actions);
@@ -393,15 +396,18 @@ export class UIActionSelector extends ActionSelector {
     var that = this;
     var run_handler = function() { that.selected_action = "run"; resolver(); };
     this.run.addEventListener('click', run_handler);
+    keymanager.register('r', run_handler);
 
     var move_handler = this.gen_moves_menu(resolver);
     this.attack.addEventListener('click', move_handler);
+    keymanager.register('a', move_handler);
 
     var item_menu = this.gen_items_menu(resolver);
     var item_handler = function() {
       item_menu.run();
     };
     this.items.addEventListener('click', item_handler);
+    keymanager.register('i', item_handler);
 
     await action_done;
 
@@ -411,6 +417,7 @@ export class UIActionSelector extends ActionSelector {
 
     this.actions.remove();
 
+    keymanager.pop_layer();
     return this.selected_action;
   }
 
