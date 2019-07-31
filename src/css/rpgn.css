@@ -28,6 +28,9 @@
 .choiceButton:hover {
 	opacity: 0.85;
 }
+.choiceButton:focus {
+	opacity: 0.85;
+}
 /* --- */
 
 .loading-progress {

@@ -52,7 +52,7 @@ var fight_scene = new UI.Scene({
       "Choose your fighter!",
       ui.setBackground(assets.images.get('wasteland')),
       new Action(async function() {
-        member = await Combat.select_party_member(game);
+        member = await Combat.select_party_member(Me.party);
       }),
       new Combat.RunCombat(game, {
         initial_text: "Encountered a ferocious dragon!\n",
@@ -113,7 +113,7 @@ var fight_scene = new UI.Scene({
   await assets.wait_for_load();
 
   Me.party.push(knight);
-  Me.party.push(await get_dragon(2));
+  Me.party.push(Combat.InteractiveCharacter.from_non_interactive(await get_dragon(3)));
 
   game.initialize(document.body, [
     fight_scene,

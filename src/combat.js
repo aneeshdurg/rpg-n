@@ -2,11 +2,11 @@ import {Action, TabbedMenu} from './actions.js';
 import {keymanager} from './config.js';
 import {ui} from './ui.js';
 
-import * as UI from './ui.js';
 import * as Characters from './characters.js';
-import * as Text from './text.js';
 import * as Items from './items.js';
 import * as Positions from './positions.js';
+import * as Text from './text.js';
+import * as UI from './ui.js';
 
 
 /**
@@ -248,7 +248,8 @@ export class Character extends Characters.Character {
 
 export class InteractiveCharacter extends Character {
   static from_non_interactive(character) {
-    var interactive_character = new InteractiveCharacter(character.name, character.color, character.types, character.type_info);
+    var interactive_character = new InteractiveCharacter(
+      character.name, character.color, character.types, character.type_info);
 
     interactive_character._level = character._level;
     interactive_character._hp = character._hp;
@@ -378,7 +379,7 @@ export class UIActionSelector extends ActionSelector {
     }
   }
 
-  gen_items_menu(resolver) { // TODO turn Menu into this table
+  gen_items_menu(resolver) {
     var that = this;
     var types = {"potions":[], "weapons":[], "equipment":[], "misc":[]};
 
@@ -434,7 +435,7 @@ export class UIActionSelector extends ActionSelector {
     var party_handler = async function() {
       // TODO instead of selecting the party from that.game, use a specified
       // list of fighters passed into run
-      var member = await select_party_member(that.game, null, true);
+      var member = await select_party_member(that.game.player.party, null, true);
       if (!member || member == that.hero)
         return;
 
@@ -575,6 +576,76 @@ class HpObj {
   }
 }
 
+class Fighter {
+
+  set_opponent(opponent) {
+    this.opponent = opponent;
+    this._actions = this.character.action_selector(this.opponent.character, this.game);
+  }
+
+  get actions() {
+    if (this._old_opponent != this.opponent.character) {
+      this._actions = this.character.action_selector(this.opponent.character, this.game);
+      this._old_opponent = this.opponent.character;
+    }
+
+    return this._actions;
+  }
+
+  async draw_stats(character) {
+    this.hp_obj = new HpObj(this.character, !this.is_hero);
+    await this.update_stats();
+  }
+
+  async update_stats() {
+    await this.hp_obj.draw_hp();
+  }
+
+  async remove_stats() {
+    this.hp_obj.destroy();
+  }
+
+  async setup() {
+    console.log(this);
+    if (this.character instanceof Function) {
+      this.character = await this.character();
+    }
+
+    var position = null;
+    if (this.is_hero) {
+      this.character.active_sprite = this.character.hero_sprite;
+      position = Positions.CenterLeft;
+    } else {
+      this.character.active_sprite = this.character.enemy_sprite;
+      position = Positions.UpRight;
+    }
+
+    await ui.draw(this.character.active_sprite, position, {height: "512px"}, 'zoomIn').run();
+    await this.draw_stats();
+    this.setup_resolver();
+  }
+
+  constructor(character, is_hero, game) {
+    this.game = game;
+
+    function construct(character, is_hero) {
+      console.log(character, is_hero);
+      this.character = character;
+      this.is_hero = Boolean(is_hero);
+
+      var resolver = null;
+      this.setup_done = new Promise(r => { resolver = r; });
+      this.setup_resolver = resolver;
+      this.setup();
+
+      this._old_opponent = null;
+      // TODO add check that opponent is set!
+    }
+    this.construct = construct.bind(this);
+    this.construct(character, is_hero);
+  }
+}
+
 /**
  * params:
  *   allow_run:
@@ -594,9 +665,8 @@ export class RunCombat extends Action {
     this.game = game;
     this.params = RunCombat.sanitize_params(params);
     this.initial_text = this.params.initial_text || "";
-    this.hero = params.hero; // TODO check that this exists allow it to be a CombatCharacter or a function
-    this.enemy = params.enemy;
-
+    // TODO take in a hero party/enemy party instead of hero/enemy
+    //this.hero = params.hero; // TODO check that this exists allow it to be a CombatCharacter or a function
     this.textbox = ui.textbox;
   }
 
@@ -652,17 +722,10 @@ export class RunCombat extends Action {
   async handle_party(player1, player2, result) {
     console.log("handling a party!");
     // TODO refactor this to be hero/enemy agnostic
-    if (player1 == this.hero) {
-      await this.remove_hero_stats();
-      this.hero.hero_sprite.remove();
-      this.hero = result.member;
-      await this.setup_hero();
-    } else {
-      await this.remove_enemy_stats();
-      this.enemy.enemy_sprite.remove();
-      this.enemy = result.member;
-      await this.setup_enemy();
-    }
+    await player1.remove_stats();
+    player1.character.active_sprite.remove();
+    player1.construct(result.member, player1.is_hero);
+    await player1.setup_done;
   }
 
   async handle_result(player1, player2, result) {
@@ -673,23 +736,23 @@ export class RunCombat extends Action {
         await this.handle_party(player1, player2, result);
     }
     else {
-      player1.damage(result.dmg_to_self);
-      player2.damage(result.dmg_to_enemy);
-      this.update_hero_stats();
-      this.update_enemy_stats();
+      player1.character.damage(result.dmg_to_self);
+      player2.character.damage(result.dmg_to_enemy);
+      await player1.update_stats();
+      await player2.update_stats();
 
       this.textbox.innerText += result.description + "\n";
     }
   }
 
-  async run_turn(player1, player1_actions, player2) {
-    await player1.run_status_effects(this.display_status_effect.bind(this));
-    await this.update_hero_stats();
-    await this.update_enemy_stats();
+  async run_turn(player1, player2) {
+    await player1.character.run_status_effects(this.display_status_effect.bind(this));
+    await player1.update_stats();
+    await player2.update_stats();
 
     var result = null;
     while (!result)
-      result = await player1_actions.get_action();
+      result = await player1.actions.get_action();
 
     await this.handle_result(player1, player2, result);
 
@@ -697,61 +760,15 @@ export class RunCombat extends Action {
     await ui.wait_for_click();
   }
 
-  async draw_stats(character, is_below) {
-    var hp_obj = new HpObj(character, is_below);
-    await hp_obj.draw_hp();
-    return hp_obj;
-  }
-
-  // TODO refactor this to be hero/enemy agnostic
-  async draw_hero_stats() {
-    console.log("Drew hero stats!");
-    this.hero_hp = await this.draw_stats(this.hero);
-  }
-
-  async draw_enemy_stats() {
-    this.enemy_hp = await this.draw_stats(this.enemy, true);
-  }
-
-  async update_hero_stats() {
-    await this.hero_hp.draw_hp();
-  }
-
-  async update_enemy_stats() {
-    await this.enemy_hp.draw_hp();
-  }
-
-  async remove_hero_stats() {
-    this.hero_hp.destroy();
-    delete this["hero_hp"];
-  }
-
-  async remove_enemy_stats() {
-    this.enemy_hp.destroy();
-    delete this["enemy_hp"];
-  }
-
-  async setup_hero() {
-    if (this.hero instanceof Function) {
-      this.hero = await this.hero();
-    }
-    this.hero.active_sprite = this.hero.hero_sprite;
-    await ui.draw(this.hero.active_sprite, Positions.CenterLeft, {height: "512px"}, 'zoomIn').run();
-    await this.draw_hero_stats();
-  }
-
-  async setup_enemy() {
-    if (this.enemy instanceof Function) {
-      this.enemy = await this.enemy();
-    }
-    this.enemy.active_sprite = this.enemy.enemy_sprite;
-    await ui.draw(this.enemy.active_sprite, Positions.UpRight, {height: "512px"}, 'zoomIn').run();
-    await this.draw_enemy_stats();
-  }
-
   async setup() {
-    await this.setup_hero();
-    await this.setup_enemy();
+    this.hero = new Fighter(this.params.hero, true, this.game);
+    this.enemy = new Fighter(this.params.enemy, false, this.game);
+
+    await this.hero.setup_done;
+    await this.enemy.setup_done;
+
+    this.hero.set_opponent(this.enemy);
+    this.enemy.set_opponent(this.hero);
 
     if (this.initial_text) {
       this.textbox.innerText = this.initial_text;
@@ -771,19 +788,16 @@ export class RunCombat extends Action {
       await this.setup();
     }
 
-    var hero_actions = this.hero.action_selector(this.enemy, this.game);
-    var enemy_actions = this.enemy.action_selector(this.hero, this.game);
-
     this.ran = false;
     var until_reached = false;
 
-    while(this.enemy.hp && this.hero.hp && (!this.ran)) {
+    while(this.enemy.character.hp && this.hero.character.hp && (!this.ran)) {
       // TODO statuseffect animations?
 
       if (this.is_hero_turn) {
-        await this.run_turn(this.hero, hero_actions, this.enemy);
+        await this.run_turn(this.hero, this.enemy);
       } else {
-        await this.run_turn(this.enemy, enemy_actions, this.hero);
+        await this.run_turn(this.enemy, this.hero);
       }
 
       await ui.delay(500).wait();
@@ -795,39 +809,39 @@ export class RunCombat extends Action {
     }
 
     if (until_reached) {
-      if (!this.params.on_until_reached(this.game, this.hero, this.enemy))
+      if (!this.params.on_until_reached(this.game, this.hero.character, this.enemy.character))
         return;
     }
 
     this.combat_done = true;
 
-    await this.remove_hero_stats();
-    await this.remove_enemy_stats();
+    await this.hero.remove_stats();
+    await this.enemy.remove_stats();
 
     if (!this.ran) {
-      if (this.enemy.hp) {
-        this.hero.hero_sprite.remove();
-        this.params.on_lose(this.game, this.hero, this.enemy);
+      if (this.enemy.character.hp) {
+        this.hero.character.active_sprite.remove();
+        this.params.on_lose(this.game, this.hero.character, this.enemy.character);
       } else {
-        this.enemy.enemy_sprite.remove();
-        this.params.on_win(this.game, this.hero, this.enemy);
+        this.enemy.character.active_sprite.remove();
+        this.params.on_win(this.game, this.hero.character, this.enemy.character);
       }
     } else {
-      this.enemy.enemy_sprite.remove();
-      this.hero.hero_sprite.remove();
-      this.params.on_run(this.game, this.hero, this.enemy);
+      this.enemy.character.active_sprite.remove();
+      this.hero.character.active_sprite.remove();
+      this.params.on_run(this.game, this.hero.character, this.enemy.character);
     }
   }
 }
 
 // TODO return the action
-export async function select_party_member(game, filter, canCancel) {
+export async function select_party_member(party, filter, canCancel) {
   filter = filter || ((e) => true);
   canCancel = Boolean(canCancel);
 
   var party_menu = {party: []};
 
-  for (let member of game.player.party) {
+  for (let member of party) {
     if (!filter(member)) {
       continue;
     }
